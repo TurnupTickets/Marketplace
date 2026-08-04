@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, Check, Loader2, Mail } from "lucide-react";
 import { z } from "zod";
@@ -28,10 +28,22 @@ const nameSchema = z.string().trim().min(2, { message: "Podaj imię i nazwisko" 
 
 function AuthPage() {
   const [mode, setMode] = useState<Mode>("login");
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [contentHeight, setContentHeight] = useState<number>();
+
+  useLayoutEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) setContentHeight(entry.contentRect.height);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <PageShell>
-      <div className="mx-auto grid max-w-5xl gap-8 py-10 lg:grid-cols-[1fr_420px]">
+      <div className="mx-auto grid max-w-5xl items-start gap-8 py-10 lg:grid-cols-[1fr_420px]">
         <div className="hidden flex-col justify-between rounded-3xl border border-border bg-card p-10 lg:flex">
           <div>
             <p className="section-chip">Twoje konto</p>
@@ -67,9 +79,16 @@ function AuthPage() {
             ))}
           </div>
 
-          {mode === "login" && <LoginForm />}
-          {mode === "register" && <RegisterForm />}
-          {mode === "reset" && <ResetForm />}
+          <div
+            className="overflow-hidden transition-[height] duration-300 ease-in-out"
+            style={{ height: contentHeight }}
+          >
+            <div ref={contentRef}>
+              {mode === "login" && <LoginForm />}
+              {mode === "register" && <RegisterForm />}
+              {mode === "reset" && <ResetForm />}
+            </div>
+          </div>
         </div>
       </div>
     </PageShell>

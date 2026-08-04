@@ -13,7 +13,7 @@ export function Logo({
       style={{ width, height }}
     >
       <img
-        src="/logo.png"
+        src={`${import.meta.env.BASE_URL}logo.png`}
         alt="turnup"
         width={125}
         height={34}
