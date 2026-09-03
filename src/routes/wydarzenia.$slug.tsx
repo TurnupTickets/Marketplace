@@ -127,12 +127,12 @@ function EventDetail() {
             {event.title} — {event.city}
           </h1>
 
-          <div className="overflow-hidden rounded-3xl border border-border">
+          <div className="mx-auto aspect-[3/4] w-full max-w-sm overflow-hidden rounded-3xl border border-border">
             <img
               src={event.cover_url}
               alt={`${event.title} — plakat wydarzenia`}
-              width={1600}
-              height={900}
+              width={1080}
+              height={1440}
               className="size-full object-cover"
             />
           </div>

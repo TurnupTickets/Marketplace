@@ -52,12 +52,12 @@ function EventsList() {
             params={{ slug: event.slug }}
             className="group overflow-hidden rounded-3xl border border-border bg-card transition-colors hover:border-primary"
           >
-            <div className="aspect-[4/3] overflow-hidden">
+            <div className="aspect-[3/4] overflow-hidden">
               <img
                 src={event.cover_url}
                 alt={`${event.title} — ${event.city ?? ""}`}
-                width={1024}
-                height={768}
+                width={1080}
+                height={1440}
                 loading="lazy"
                 className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
               />

@@ -5,7 +5,7 @@ import { EventCard } from "./EventCard";
 export function SectionRow({ section }: { section: EventSection }) {
   return (
     <section className="space-y-3">
-      <div className="pl-12 pr-4 md:pl-14 md:pr-6">
+      <div className="px-4 md:px-6">
         <h2>
           <Link to="/wydarzenia" search={{ page: 1, q: section.label }} className="section-chip">
             {section.label}
@@ -19,7 +19,7 @@ export function SectionRow({ section }: { section: EventSection }) {
             <EventCard
               key={event.id}
               event={event}
-              className="aspect-[4/3] w-[62vw] shrink-0 snap-start md:w-[22rem]"
+              className="aspect-[3/4] w-[46vw] shrink-0 snap-start md:w-[18rem]"
             />
           ))}
         </div>
