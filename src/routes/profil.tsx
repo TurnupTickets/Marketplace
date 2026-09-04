@@ -79,10 +79,10 @@ function ProfilePage() {
                   <img
                     src={event.cover_url}
                     alt={event.title}
-                    width={800}
-                    height={600}
+                    width={1080}
+                    height={1440}
                     loading="lazy"
-                    className="aspect-[4/3] w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    className="aspect-[3/4] w-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                   <div className="space-y-1 p-4">
                     <p className="font-display text-sm font-bold uppercase">{event.title}</p>

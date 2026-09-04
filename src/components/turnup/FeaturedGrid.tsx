@@ -22,7 +22,7 @@ function FeaturedGroup({
         event={big}
         priority={priority}
         rounded={TILE_RADIUS}
-        className="aspect-square w-2/3"
+        className="aspect-[3/4] w-2/3"
       />
       <div className="flex w-1/3 flex-col gap-3 md:gap-4">
         {small1 && <EventCard event={small1} rounded={TILE_RADIUS} className="min-h-0 flex-1" />}

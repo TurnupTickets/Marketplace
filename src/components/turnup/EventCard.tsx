@@ -25,8 +25,8 @@ export function EventCard({
       <img
         src={event.cover_url}
         alt={`${event.title} — ${event.city ?? ""}`}
-        width={1024}
-        height={1024}
+        width={1080}
+        height={1440}
         loading={priority ? "eager" : "lazy"}
         className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
       />
