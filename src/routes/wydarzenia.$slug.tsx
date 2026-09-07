@@ -127,56 +127,58 @@ function EventDetail() {
             {event.title} — {event.city}
           </h1>
 
-          <div className="mx-auto aspect-[3/4] w-full max-w-sm overflow-hidden rounded-3xl border border-border">
-            <img
-              src={event.cover_url}
-              alt={`${event.title} — plakat wydarzenia`}
-              width={1080}
-              height={1440}
-              className="size-full object-cover"
-            />
-          </div>
-
-          <div className="space-y-4 rounded-3xl border border-border bg-card p-6 md:p-8">
-            <h2 className="font-display text-xl font-bold uppercase">O wydarzeniu</h2>
-            <p className="text-sm leading-relaxed text-muted-foreground md:text-base">
-              {event.description}
-            </p>
-
-            <dl className="grid gap-4 pt-2 sm:grid-cols-3">
-              <Info
-                icon={<MapPin className="size-4" />}
-                label="Miejsce"
-                value={event.venue ?? "—"}
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)] lg:items-start">
+            <div className="mx-auto aspect-[3/4] w-full max-w-sm overflow-hidden rounded-3xl border border-border lg:mx-0 lg:max-w-none">
+              <img
+                src={event.cover_url}
+                alt={`${event.title} — plakat wydarzenia`}
+                width={1080}
+                height={1440}
+                className="size-full object-cover"
               />
-              <Info
-                icon={<CalendarDays className="size-4" />}
-                label="Termin"
-                value={event.date_label ?? event.starts_at ?? "—"}
-              />
-              <Info
-                icon={<ShieldCheck className="size-4" />}
-                label="Bilety"
-                value="Elektroniczne, wysyłane na e-mail"
-              />
-            </dl>
+            </div>
 
-            {event.venue_lat != null && event.venue_lng != null && (
-              <div className="space-y-2 pt-2">
-                <ClientOnly>
-                  <Suspense fallback={null}>
-                    <LocationMap
-                      lat={event.venue_lat}
-                      lng={event.venue_lng}
-                      label={event.venue ?? event.title}
-                    />
-                  </Suspense>
-                </ClientOnly>
-                <p className="text-xs text-muted-foreground">
-                  {event.venue_address ?? event.venue}
-                </p>
-              </div>
-            )}
+            <div className="space-y-4 rounded-3xl border border-border bg-card p-6 md:p-8">
+              <h2 className="font-display text-xl font-bold uppercase">O wydarzeniu</h2>
+              <p className="text-sm leading-relaxed text-muted-foreground md:text-base">
+                {event.description}
+              </p>
+
+              <dl className="grid gap-4 pt-2 sm:grid-cols-3">
+                <Info
+                  icon={<MapPin className="size-4" />}
+                  label="Miejsce"
+                  value={event.venue ?? "—"}
+                />
+                <Info
+                  icon={<CalendarDays className="size-4" />}
+                  label="Termin"
+                  value={event.date_label ?? event.starts_at ?? "—"}
+                />
+                <Info
+                  icon={<ShieldCheck className="size-4" />}
+                  label="Bilety"
+                  value="Elektroniczne, wysyłane na e-mail"
+                />
+              </dl>
+
+              {event.venue_lat != null && event.venue_lng != null && (
+                <div className="space-y-2 pt-2">
+                  <ClientOnly>
+                    <Suspense fallback={null}>
+                      <LocationMap
+                        lat={event.venue_lat}
+                        lng={event.venue_lng}
+                        label={event.venue ?? event.title}
+                      />
+                    </Suspense>
+                  </ClientOnly>
+                  <p className="text-xs text-muted-foreground">
+                    {event.venue_address ?? event.venue}
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
