@@ -1,11 +1,12 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { CalendarDays, MapPin, Minus, Plus, ShieldCheck } from "lucide-react";
+import { CalendarDays, ChevronDown, MapPin, Minus, Plus, ShieldCheck } from "lucide-react";
 import { PageShell } from "@/components/turnup/PageShell";
+import { useQuote } from "@/hooks/use-quote";
 import { eventDetailQuery } from "@/lib/api/queries";
 import { formatEventDateTime } from "@/lib/format-event-date";
-import type { EventTicketGroupSummary } from "@/lib/api/types";
+import type { EventTicketGroupSummary, TicketSelection } from "@/lib/api/types";
 
 export const Route = createFileRoute("/wydarzenia/$tagSlug/$eventSlug")({
   loader: async ({ context, params }) => {
@@ -45,22 +46,80 @@ function EventDetail() {
   const { tagSlug, eventSlug } = Route.useParams();
   const { data: event } = useSuspenseQuery(eventDetailQuery(tagSlug, eventSlug));
   const [counts, setCounts] = useState<Record<number, number>>({});
+  const [sms, setSms] = useState(false);
+  const [delivery, setDelivery] = useState(false);
+  const [giftTicket, setGiftTicket] = useState(false);
+  const [discountOpen, setDiscountOpen] = useState(false);
+  const [discountCode, setDiscountCode] = useState("");
+  const [appliedDiscountCode, setAppliedDiscountCode] = useState("");
 
   const totalCount = Object.values(counts).reduce((a, b) => a + b, 0);
 
-  // Client-side subtotal from public ticket-group prices — good enough for
-  // qty-only selection. Discount codes and addon flags (Phase 4) need the
-  // live quote endpoint instead, since their pricing has no static source.
-  const total = useMemo(
-    () => event.ticket_groups.reduce((sum, g) => sum + Number(g.price) * (counts[g.id] ?? 0), 0),
-    [counts, event.ticket_groups],
+  const tickets: TicketSelection = useMemo(() => {
+    const map: TicketSelection = {};
+    for (const [id, qty] of Object.entries(counts)) {
+      if (qty > 0) map[Number(id)] = qty;
+    }
+    return map;
+  }, [counts]);
+
+  // No static addon/discount price list exists on the backend — the quote
+  // endpoint is the only source of truth, so every selection change
+  // (tickets, flags, discount code) re-prices through it (debounced).
+  const quoteRequest = useMemo(
+    () => ({
+      tickets,
+      discount: appliedDiscountCode || null,
+      sms: (sms ? 1 : 0) as 0 | 1,
+      delivery: (delivery ? 1 : 0) as 0 | 1,
+      ticket_as_gift: (giftTicket ? 1 : 0) as 0 | 1,
+    }),
+    [tickets, appliedDiscountCode, sms, delivery, giftTicket],
   );
+
+  const {
+    data: quote,
+    isLoading: quoteLoading,
+    isFetching: quoteFetching,
+    isError: quoteErrored,
+    isDebouncing: quoteDebouncing,
+    hasTickets: quoteHasTickets,
+  } = useQuote(event.id, quoteRequest);
+
+  // Quote is stale/untrustworthy while: no tickets selected yet, the
+  // debounce window hasn't settled, or a request is in flight — in every
+  // one of those states we must not show `quote`'s last-known value
+  // (`keepPreviousData` would otherwise leave a zeroed cart showing the
+  // previous non-zero total, and a just-applied discount code briefly
+  // showing "invalid" against the pre-discount quote).
+  const quotePending = quoteHasTickets && (quoteLoading || quoteFetching || quoteDebouncing);
+  const total = totalCount === 0 ? 0 : (quote?.total ?? 0);
+  const discountApplied =
+    Boolean(appliedDiscountCode) && !quotePending && !quoteErrored && quote?.discount != null;
+  const discountInvalid =
+    Boolean(appliedDiscountCode) &&
+    !quotePending &&
+    !quoteErrored &&
+    quote != null &&
+    quote.discount == null;
+
+  // Clearing the cart drops the applied discount too — re-adding tickets
+  // should require re-entering the code, not silently reapply the old one.
+  useEffect(() => {
+    if (totalCount === 0 && appliedDiscountCode !== "") setAppliedDiscountCode("");
+  }, [totalCount, appliedDiscountCode]);
 
   const change = (id: number, delta: number, max: number) =>
     setCounts((prev) => ({
       ...prev,
       [id]: Math.max(0, Math.min(max, (prev[id] ?? 0) + delta)),
     }));
+
+  const applyDiscount = () => {
+    const code = discountCode.trim();
+    if (!code) return;
+    setAppliedDiscountCode(code);
+  };
 
   return (
     <PageShell>
@@ -124,6 +183,54 @@ function EventDetail() {
             </p>
           </div>
 
+          <div className="overflow-hidden rounded-2xl">
+            <button
+              type="button"
+              onClick={() => setDiscountOpen((v) => !v)}
+              className="gradient-brand flex w-full items-center justify-between px-5 py-3 text-left text-sm font-bold uppercase text-primary-foreground"
+            >
+              Masz kod rabatowy? Kliknij
+              <ChevronDown
+                className={`size-4 shrink-0 transition-transform ${discountOpen ? "rotate-180" : ""}`}
+              />
+            </button>
+            {discountOpen && (
+              <div className="space-y-2 bg-secondary p-4">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={discountCode}
+                    onChange={(e) => {
+                      setDiscountCode(e.target.value);
+                      setAppliedDiscountCode("");
+                    }}
+                    placeholder="Wpisz kod rabatowy"
+                    className="min-w-0 flex-1 rounded-xl border border-border bg-background px-3 py-2 text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={applyDiscount}
+                    disabled={!discountCode.trim() || totalCount === 0}
+                    className="rounded-xl bg-primary px-4 py-2 text-xs font-bold uppercase text-primary-foreground disabled:opacity-40"
+                  >
+                    Zastosuj
+                  </button>
+                </div>
+                {totalCount === 0 && (
+                  <p className="text-xs text-muted-foreground">Wybierz najpierw liczbę biletów.</p>
+                )}
+                {discountApplied && (
+                  <p className="text-xs font-semibold text-primary">
+                    Zastosowano rabat — {quote?.discount?.info}
+                  </p>
+                )}
+                {discountInvalid && (
+                  <p className="text-xs text-destructive">Nieprawidłowy kod rabatowy</p>
+                )}
+              </div>
+            )}
+          </div>
+
           <ul className="divide-y divide-border">
             {event.ticket_groups.map((group) => (
               <GroupRow
@@ -135,15 +242,39 @@ function EventDetail() {
             ))}
           </ul>
 
+          <ul className="space-y-3 border-t border-border pt-4">
+            <AddonRow
+              label="Chcę otrzymać również bilet SMS"
+              checked={sms}
+              onToggle={() => setSms((v) => !v)}
+              price={quotePending ? undefined : quote?.additional_costs.sms}
+            />
+            <AddonRow
+              label="Zamawiam kolekcjonerski bilet z wysyłką"
+              checked={delivery}
+              onToggle={() => setDelivery((v) => !v)}
+              price={quotePending ? undefined : quote?.additional_costs.delivery}
+            />
+            <AddonRow
+              label="Zamawiam specjalny bilet prezentowy"
+              checked={giftTicket}
+              onToggle={() => setGiftTicket((v) => !v)}
+              price={quotePending ? undefined : quote?.additional_costs.gift}
+            />
+          </ul>
+
           <div className="flex items-center justify-between border-t border-border pt-4">
             <span className="text-xs uppercase tracking-widest text-muted-foreground">
               {totalCount} {totalCount === 1 ? "bilet" : "biletów"}
             </span>
-            <span className="font-display text-xl font-bold">{total.toFixed(2)} PLN</span>
+            {quotePending ? (
+              <span className="text-sm text-muted-foreground">Liczenie…</span>
+            ) : (
+              <span className="font-display text-xl font-bold">{total.toFixed(2)} PLN</span>
+            )}
           </div>
 
-          {/* Checkout wiring (discount code, addon flags, live quote, and the
-              order-form route itself) lands in Phases 4/6 — CTA stays inert
+          {/* Order-form route + navigation land in Phase 6 — CTA stays inert
               until then. */}
           <span
             aria-disabled
@@ -206,6 +337,36 @@ function GroupRow({
           <Plus className="size-4" />
         </button>
       </div>
+    </li>
+  );
+}
+
+function AddonRow({
+  label,
+  checked,
+  onToggle,
+  price,
+}: {
+  label: string;
+  checked: boolean;
+  onToggle: () => void;
+  /** Only known once the live quote resolves with this flag set — no static price list exists. */
+  price: number | undefined;
+}) {
+  return (
+    <li>
+      <label className="flex cursor-pointer items-start gap-3 text-sm">
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={onToggle}
+          className="mt-0.5 size-4 shrink-0 rounded border-border accent-primary"
+        />
+        <span className="flex-1">{label}</span>
+        {checked && price != null && price > 0 && (
+          <span className="shrink-0 font-semibold text-primary">+{price.toFixed(2)} PLN</span>
+        )}
+      </label>
     </li>
   );
 }
