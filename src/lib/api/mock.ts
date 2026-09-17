@@ -432,51 +432,45 @@ function mockCustomSeatMap(): SeatMapResource {
   };
 }
 
+/** Circle-as-`<path>` (SVG has no native circle-path shorthand) — the
+ * canvas renderer (mirroring the legacy admin export convention) only
+ * parses `<path d="...">` elements, same as a real Filament-exported
+ * seat scheme. A `<circle>` tag here would silently parse to zero seats. */
+function circlePath(cx: number, cy: number, r: number): string {
+  return `M${cx - r},${cy} a${r},${r} 0 1,0 ${2 * r},0 a${r},${r} 0 1,0 ${-2 * r},0`;
+}
+
 function mockSchemeSeatMap(): SeatMapResource {
-  const seats = [
-    {
-      id: 101,
-      real_id: "seat-a1",
+  const cols = 6;
+  const rows = 2;
+  const radius = 10;
+  const spacing = 28;
+  const seats = Array.from({ length: rows * cols }, (_, i) => {
+    const row = Math.floor(i / cols);
+    const col = i % cols;
+    return {
+      id: 101 + i,
+      real_id: `seat-a${i + 1}`,
       section: "A",
-      row: "1",
-      number: "1",
+      row: String(row + 1),
+      number: String(col + 1),
       ticket_group_id: 2,
-      status: "available",
-      sold: false,
+      status: i === 5 ? "occupied" : "available",
+      sold: i === 5,
       color: "#f59e0b",
-    },
-    {
-      id: 102,
-      real_id: "seat-a2",
-      section: "A",
-      row: "1",
-      number: "2",
-      ticket_group_id: 2,
-      status: "available",
-      sold: false,
-      color: "#f59e0b",
-    },
-    {
-      id: 103,
-      real_id: "seat-a3",
-      section: "A",
-      row: "1",
-      number: "3",
-      ticket_group_id: 2,
-      status: "occupied",
-      sold: true,
-      color: "#f59e0b",
-    },
-  ];
-  const svg = `<svg viewBox="0 0 120 40" xmlns="http://www.w3.org/2000/svg">${seats
+      cx: 24 + col * spacing,
+      cy: 24 + row * spacing,
+    };
+  });
+  const svg = `<svg viewBox="0 0 ${24 + cols * spacing} ${24 + rows * spacing}" xmlns="http://www.w3.org/2000/svg">${seats
     .map(
-      (s, i) => `<circle id="${s.real_id}" cx="${20 + i * 40}" cy="20" r="12" fill="${s.color}" />`,
+      (s) => `<path id="${s.real_id}" d="${circlePath(s.cx, s.cy, radius)}" fill="${s.color}" />`,
     )
     .join("")}</svg>`;
   return {
     type: "scheme",
     svg,
-    seats,
+    seats: seats.map(({ cx: _cx, cy: _cy, ...seat }) => seat),
     ticket_groups: [{ id: 2, name: "Bilet VIP", color: "#f59e0b" }],
   };
 }

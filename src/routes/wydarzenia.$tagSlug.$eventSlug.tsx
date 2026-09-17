@@ -3,17 +3,27 @@ import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { CalendarDays, ChevronDown, MapPin, Minus, Plus, ShieldCheck } from "lucide-react";
 import { PageShell } from "@/components/turnup/PageShell";
+import { SeatPicker } from "@/components/turnup/SeatPicker";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useQuote } from "@/hooks/use-quote";
-import { eventDetailQuery } from "@/lib/api/queries";
+import { eventDetailQuery, seatMapQuery } from "@/lib/api/queries";
 import { formatEventDateTime } from "@/lib/format-event-date";
-import type { EventTicketGroupSummary, TicketSelection } from "@/lib/api/types";
+import type { EventTicketGroupSummary, SeatSelection, TicketSelection } from "@/lib/api/types";
 
 export const Route = createFileRoute("/wydarzenia/$tagSlug/$eventSlug")({
   loader: async ({ context, params }) => {
     try {
-      const event = await context.queryClient.ensureQueryData(
-        eventDetailQuery(params.tagSlug, params.eventSlug),
-      );
+      const [event] = await Promise.all([
+        context.queryClient.ensureQueryData(eventDetailQuery(params.tagSlug, params.eventSlug)),
+        context.queryClient.ensureQueryData(seatMapQuery(params.tagSlug, params.eventSlug)),
+      ]);
       return { name: event.name, city: event.city, cover: event.cover_url };
     } catch {
       throw notFound();
@@ -45,7 +55,15 @@ export const Route = createFileRoute("/wydarzenia/$tagSlug/$eventSlug")({
 function EventDetail() {
   const { tagSlug, eventSlug } = Route.useParams();
   const { data: event } = useSuspenseQuery(eventDetailQuery(tagSlug, eventSlug));
+  const { data: seatMap } = useSuspenseQuery(seatMapQuery(tagSlug, eventSlug));
   const [counts, setCounts] = useState<Record<number, number>>({});
+  // `seatsByGroup` is the *confirmed* selection (feeds the cart/quote).
+  // `draftSeats` is edited inside the seat-picker modal and only committed
+  // to `seatsByGroup` on "Zatwierdź" — real seating plans can be large, so
+  // this stays a full-screen-ish modal rather than an inline widget.
+  const [seatsByGroup, setSeatsByGroup] = useState<SeatSelection>({});
+  const [seatModalOpen, setSeatModalOpen] = useState(false);
+  const [draftSeats, setDraftSeats] = useState<SeatSelection>({});
   const [sms, setSms] = useState(false);
   const [delivery, setDelivery] = useState(false);
   const [giftTicket, setGiftTicket] = useState(false);
@@ -53,28 +71,61 @@ function EventDetail() {
   const [discountCode, setDiscountCode] = useState("");
   const [appliedDiscountCode, setAppliedDiscountCode] = useState("");
 
-  const totalCount = Object.values(counts).reduce((a, b) => a + b, 0);
+  // Groups the seat map covers use seat selection instead of a qty stepper
+  // — for those groups the ticket count IS the number of selected seats.
+  const seatedGroupIds = useMemo(
+    () => new Set(seatMap.type === "none" ? [] : seatMap.ticket_groups.map((g) => g.id)),
+    [seatMap],
+  );
+
+  const openSeatModal = () => {
+    setDraftSeats(seatsByGroup);
+    setSeatModalOpen(true);
+  };
+
+  const toggleDraftSeat = (seatId: number, groupId: number) =>
+    setDraftSeats((prev) => {
+      const current = prev[groupId] ?? [];
+      const next = current.includes(seatId)
+        ? current.filter((id) => id !== seatId)
+        : [...current, seatId];
+      return { ...prev, [groupId]: next };
+    });
+
+  const confirmSeats = () => {
+    setSeatsByGroup(draftSeats);
+    setSeatModalOpen(false);
+  };
+
+  const totalSelectedSeats = Object.values(seatsByGroup).reduce((a, ids) => a + ids.length, 0);
+  const draftSelectedSeats = Object.values(draftSeats).reduce((a, ids) => a + ids.length, 0);
 
   const tickets: TicketSelection = useMemo(() => {
     const map: TicketSelection = {};
     for (const [id, qty] of Object.entries(counts)) {
-      if (qty > 0) map[Number(id)] = qty;
+      if (qty > 0 && !seatedGroupIds.has(Number(id))) map[Number(id)] = qty;
+    }
+    for (const [id, seatIds] of Object.entries(seatsByGroup)) {
+      if (seatIds.length > 0) map[Number(id)] = seatIds.length;
     }
     return map;
-  }, [counts]);
+  }, [counts, seatsByGroup, seatedGroupIds]);
+
+  const totalCount = Object.values(tickets).reduce((a, b) => a + b, 0);
 
   // No static addon/discount price list exists on the backend — the quote
   // endpoint is the only source of truth, so every selection change
-  // (tickets, flags, discount code) re-prices through it (debounced).
+  // (tickets, seats, flags, discount code) re-prices through it (debounced).
   const quoteRequest = useMemo(
     () => ({
       tickets,
+      seats: seatsByGroup,
       discount: appliedDiscountCode || null,
       sms: (sms ? 1 : 0) as 0 | 1,
       delivery: (delivery ? 1 : 0) as 0 | 1,
       ticket_as_gift: (giftTicket ? 1 : 0) as 0 | 1,
     }),
-    [tickets, appliedDiscountCode, sms, delivery, giftTicket],
+    [tickets, seatsByGroup, appliedDiscountCode, sms, delivery, giftTicket],
   );
 
   const {
@@ -236,11 +287,28 @@ function EventDetail() {
               <GroupRow
                 key={group.id}
                 group={group}
-                count={counts[group.id] ?? 0}
+                count={
+                  seatedGroupIds.has(group.id)
+                    ? (seatsByGroup[group.id]?.length ?? 0)
+                    : (counts[group.id] ?? 0)
+                }
+                seated={seatedGroupIds.has(group.id)}
                 onChange={(d) => change(group.id, d, group.available_count)}
               />
             ))}
           </ul>
+
+          {seatMap.type !== "none" && (
+            <button
+              type="button"
+              onClick={openSeatModal}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-border px-4 py-3 text-sm font-bold uppercase text-foreground transition-colors hover:border-primary"
+            >
+              {totalSelectedSeats > 0
+                ? `Wybrano ${totalSelectedSeats} ${totalSelectedSeats === 1 ? "miejsce" : "miejsc"} — zmień`
+                : "Wybierz miejsca na planie sali"}
+            </button>
+          )}
 
           <ul className="space-y-3 border-t border-border pt-4">
             <AddonRow
@@ -291,6 +359,46 @@ function EventDetail() {
           </Link>
         </aside>
       </div>
+
+      {seatMap.type !== "none" && (
+        <Dialog open={seatModalOpen} onOpenChange={setSeatModalOpen}>
+          <DialogContent className="max-h-[85vh] max-w-4xl overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Wybierz miejsca</DialogTitle>
+              <DialogDescription>
+                {event.name} · {event.city}
+              </DialogDescription>
+            </DialogHeader>
+
+            <SeatPicker
+              seatMap={seatMap}
+              selectedByGroup={draftSeats}
+              onToggleSeat={toggleDraftSeat}
+            />
+
+            <DialogFooter className="items-center gap-3 sm:justify-between">
+              <span className="text-sm text-muted-foreground sm:mr-auto">
+                {draftSelectedSeats}{" "}
+                {draftSelectedSeats === 1 ? "zaznaczone miejsce" : "zaznaczonych miejsc"}
+              </span>
+              <button
+                type="button"
+                onClick={() => setSeatModalOpen(false)}
+                className="rounded-full border border-border px-6 py-2.5 text-sm font-bold uppercase text-foreground transition-colors hover:border-primary"
+              >
+                Anuluj
+              </button>
+              <button
+                type="button"
+                onClick={confirmSeats}
+                className="gradient-brand rounded-full px-6 py-2.5 text-sm font-bold uppercase text-primary-foreground"
+              >
+                Zatwierdź
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </PageShell>
   );
 }
@@ -298,10 +406,12 @@ function EventDetail() {
 function GroupRow({
   group,
   count,
+  seated,
   onChange,
 }: {
   group: EventTicketGroupSummary;
   count: number;
+  seated: boolean;
   onChange: (delta: number) => void;
 }) {
   const soldOut = group.status !== "on_sale" || group.available_count <= 0;
@@ -316,27 +426,38 @@ function GroupRow({
         {soldOut && (
           <p className="text-[0.65rem] uppercase tracking-wide text-destructive">Wyprzedane</p>
         )}
+        {seated && (
+          <p className="text-[0.65rem] uppercase tracking-wide text-muted-foreground">
+            Wybierz miejsca na planie sali poniżej
+          </p>
+        )}
       </div>
 
-      <div className="flex h-fit items-center gap-2">
-        <button
-          aria-label={`Usuń ${group.name}`}
-          onClick={() => onChange(-1)}
-          disabled={count === 0}
-          className="flex size-8 items-center justify-center rounded-full bg-secondary text-foreground transition-colors hover:bg-muted disabled:opacity-40"
-        >
-          <Minus className="size-4" />
-        </button>
-        <span className="w-6 text-center font-display text-sm font-bold">{count}</span>
-        <button
-          aria-label={`Dodaj ${group.name}`}
-          onClick={() => onChange(1)}
-          disabled={soldOut || count >= group.available_count}
-          className="gradient-brand flex size-8 items-center justify-center rounded-full text-primary-foreground disabled:opacity-40"
-        >
-          <Plus className="size-4" />
-        </button>
-      </div>
+      {seated ? (
+        <span className="flex h-fit items-center font-display text-sm font-bold">
+          {count} {count === 1 ? "miejsce" : "miejsc"}
+        </span>
+      ) : (
+        <div className="flex h-fit items-center gap-2">
+          <button
+            aria-label={`Usuń ${group.name}`}
+            onClick={() => onChange(-1)}
+            disabled={count === 0}
+            className="flex size-8 items-center justify-center rounded-full bg-secondary text-foreground transition-colors hover:bg-muted disabled:opacity-40"
+          >
+            <Minus className="size-4" />
+          </button>
+          <span className="w-6 text-center font-display text-sm font-bold">{count}</span>
+          <button
+            aria-label={`Dodaj ${group.name}`}
+            onClick={() => onChange(1)}
+            disabled={soldOut || count >= group.available_count}
+            className="gradient-brand flex size-8 items-center justify-center rounded-full text-primary-foreground disabled:opacity-40"
+          >
+            <Plus className="size-4" />
+          </button>
+        </div>
+      )}
     </li>
   );
 }
