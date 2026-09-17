@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Loader2, Search, X } from "lucide-react";
+import { parseEventPath } from "@/lib/api/endpoints";
 import { activeEventsQuery } from "@/lib/api/queries";
 
 const QUICK = ["Festival", "Teatr", "Warszawa", "Kraków", "JMSN", "Scrap"];
@@ -80,34 +81,37 @@ export function SearchModal({ open, onClose }: { open: boolean; onClose: () => v
             </p>
           ) : (
             <ul className="space-y-1">
-              {results.map((event) => (
-                <li key={event.id}>
-                  <Link
-                    to="/wydarzenia/$slug"
-                    params={{ slug: event.slug }}
-                    onClick={onClose}
-                    className="flex items-center gap-4 rounded-2xl px-3 py-2 transition-colors hover:bg-secondary"
-                  >
-                    <img
-                      src={event.cover_url}
-                      alt={event.title}
-                      width={96}
-                      height={96}
-                      loading="lazy"
-                      className="size-14 rounded-xl object-cover"
-                    />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate font-display text-sm font-bold">{event.title}</span>
-                      <span className="block truncate text-xs text-muted-foreground">
-                        {event.city} · {event.venue}
+              {results.map((event) => {
+                const path = parseEventPath(event.canonical_url);
+                if (!path) return null;
+                return (
+                  <li key={event.id}>
+                    <Link
+                      to="/wydarzenia/$tagSlug/$eventSlug"
+                      params={{ tagSlug: path.tagSlug, eventSlug: path.eventSlug }}
+                      onClick={onClose}
+                      className="flex items-center gap-4 rounded-2xl px-3 py-2 transition-colors hover:bg-secondary"
+                    >
+                      <img
+                        src={event.cover_url ?? undefined}
+                        alt={event.name}
+                        width={96}
+                        height={96}
+                        loading="lazy"
+                        className="size-14 rounded-xl object-cover"
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-display text-sm font-bold">
+                          {event.name}
+                        </span>
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {event.city} {event.primary_tag ? `· ${event.primary_tag.name}` : ""}
+                        </span>
                       </span>
-                    </span>
-                    <span className="shrink-0 text-xs font-semibold text-primary">
-                      od {event.price_from} {event.currency}
-                    </span>
-                  </Link>
-                </li>
-              ))}
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>

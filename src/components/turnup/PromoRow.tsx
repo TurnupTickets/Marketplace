@@ -1,12 +1,12 @@
 import { ChevronRight, Handshake, MoveLeft, MoveRight } from "lucide-react";
-import type { EventItem } from "@/lib/api/types";
+import type { EventListResource } from "@/lib/api/types";
 
 export function PromoRow({
   upcoming,
   isLoggedIn,
   adHref = "#",
 }: {
-  upcoming: EventItem[];
+  upcoming: EventListResource[];
   isLoggedIn: boolean;
   adHref?: string;
 }) {
@@ -29,8 +29,8 @@ export function PromoRow({
             {upcoming.slice(0, 3).map((event) => (
               <img
                 key={event.id}
-                src={event.cover_url}
-                alt={event.title}
+                src={event.cover_url ?? undefined}
+                alt={event.name}
                 width={1024}
                 height={1024}
                 loading="lazy"

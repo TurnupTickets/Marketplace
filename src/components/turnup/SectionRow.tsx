@@ -1,21 +1,21 @@
 import { Link } from "@tanstack/react-router";
-import type { EventSection } from "@/lib/api/types";
+import type { HomepageTagSlider } from "@/lib/api/types";
 import { EventCard } from "./EventCard";
 
-export function SectionRow({ section }: { section: EventSection }) {
+export function SectionRow({ slider }: { slider: HomepageTagSlider }) {
   return (
     <section className="space-y-3">
       <div className="px-4 md:px-6">
         <h2>
-          <Link to="/wydarzenia" search={{ page: 1, q: section.label }} className="section-chip">
-            {section.label}
+          <Link to="/wydarzenia" search={{ page: 1, q: slider.tag.name }} className="section-chip">
+            {slider.tag.name}
           </Link>
         </h2>
       </div>
 
       <div className="no-scrollbar overflow-x-auto pb-1">
         <div className="flex w-max snap-x gap-3 px-4 md:gap-4 md:px-6">
-          {section.events.map((event) => (
+          {slider.events.map((event) => (
             <EventCard
               key={event.id}
               event={event}

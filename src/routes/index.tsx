@@ -6,12 +6,7 @@ import { Reveal } from "@/components/turnup/Reveal";
 import { SectionRow } from "@/components/turnup/SectionRow";
 import { SiteFooter } from "@/components/turnup/SiteFooter";
 import { TopBar } from "@/components/turnup/TopBar";
-import {
-  currentUserQuery,
-  eventSectionsQuery,
-  featuredEventsQuery,
-  myUpcomingQuery,
-} from "@/lib/api/queries";
+import { currentUserQuery, homepageQuery } from "@/lib/api/queries";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -30,34 +25,35 @@ export const Route = createFileRoute("/")({
     ],
   }),
   loader: async ({ context }) => {
-    await Promise.all([
-      context.queryClient.ensureQueryData(featuredEventsQuery()),
-      context.queryClient.ensureQueryData(eventSectionsQuery()),
-    ]);
+    await context.queryClient.ensureQueryData(homepageQuery());
   },
   component: Home,
 });
 
 function Home() {
-  const { data: featured } = useSuspenseQuery(featuredEventsQuery());
-  const { data: sections } = useSuspenseQuery(eventSectionsQuery());
+  const { data: homepage } = useSuspenseQuery(homepageQuery());
   const { data: user } = useSuspenseQuery(currentUserQuery());
-  const { data: upcoming } = useSuspenseQuery(myUpcomingQuery());
+
+  // No backend endpoint returns "this customer's upcoming events" today
+  // (the old mock's /me/upcoming has no real counterpart — /account/orders
+  // and /account/tickets don't carry date/cover/slug, only order/ticket
+  // summaries). PromoRow degrades to an empty row until that exists.
+  const upcoming: never[] = [];
 
   return (
     <div className="min-h-screen bg-background">
       <TopBar />
 
       <main className="mx-auto max-w-[1600px] space-y-8 pb-4">
-        <FeaturedGrid events={featured} />
+        <FeaturedGrid events={homepage.featured} />
 
         <Reveal>
           <PromoRow upcoming={upcoming} isLoggedIn={Boolean(user)} />
         </Reveal>
 
-        {sections.map((section) => (
-          <Reveal key={section.id}>
-            <SectionRow section={section} />
+        {homepage.tag_sliders.map((slider) => (
+          <Reveal key={slider.tag.id}>
+            <SectionRow slider={slider} />
           </Reveal>
         ))}
       </main>

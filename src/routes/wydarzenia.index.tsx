@@ -4,7 +4,10 @@ import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { ChevronLeft, ChevronRight, MapPin } from "lucide-react";
 import { PageShell } from "@/components/turnup/PageShell";
+import { parseEventPath } from "@/lib/api/endpoints";
 import { eventsPageQuery } from "@/lib/api/queries";
+import { formatEventDate } from "@/lib/format-event-date";
+import type { EventListResource } from "@/lib/api/types";
 
 const searchSchema = z.object({
   page: fallback(z.number().int(), 1).default(1),
@@ -26,7 +29,10 @@ export const Route = createFileRoute("/wydarzenia/")({
           "Pełna lista wydarzeń w turnup: koncerty, festiwale, teatr i imprezy klubowe. Filtruj, przeglądaj strony i kup bilet online.",
       },
       { property: "og:title", content: "Wydarzenia — turnup" },
-      { property: "og:description", content: "Przeglądaj wszystkie wydarzenia i kup bilet w kilka sekund." },
+      {
+        property: "og:description",
+        content: "Przeglądaj wszystkie wydarzenia i kup bilet w kilka sekund.",
+      },
     ],
   }),
   component: EventsList,
@@ -46,37 +52,7 @@ function EventsList() {
     >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {data.data.map((event) => (
-          <Link
-            key={event.id}
-            to="/wydarzenia/$slug"
-            params={{ slug: event.slug }}
-            className="group overflow-hidden rounded-3xl border border-border bg-card transition-colors hover:border-primary"
-          >
-            <div className="aspect-[3/4] overflow-hidden">
-              <img
-                src={event.cover_url}
-                alt={`${event.title} — ${event.city ?? ""}`}
-                width={1080}
-                height={1440}
-                loading="lazy"
-                className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
-              />
-            </div>
-            <div className="space-y-2 p-4">
-              <h2 className="font-display text-base font-bold uppercase leading-tight">{event.title}</h2>
-              <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <MapPin className="size-3.5" /> {event.city} · {event.venue}
-              </p>
-              <div className="flex items-center justify-between pt-1">
-                <span className="text-xs uppercase tracking-wide text-muted-foreground">
-                  {event.starts_at}
-                </span>
-                <span className="text-sm font-bold text-primary">
-                  od {event.price_from} {event.currency}
-                </span>
-              </div>
-            </div>
-          </Link>
+          <EventListCard key={event.id} event={event} />
         ))}
       </div>
 
@@ -105,6 +81,41 @@ function EventsList() {
         </PageLink>
       </nav>
     </PageShell>
+  );
+}
+
+function EventListCard({ event }: { event: EventListResource }) {
+  const path = parseEventPath(event.canonical_url);
+  if (!path) return null;
+  return (
+    <Link
+      to="/wydarzenia/$tagSlug/$eventSlug"
+      params={{ tagSlug: path.tagSlug, eventSlug: path.eventSlug }}
+      className="group overflow-hidden rounded-3xl border border-border bg-card transition-colors hover:border-primary"
+    >
+      <div className="aspect-[3/4] overflow-hidden">
+        <img
+          src={event.cover_url ?? undefined}
+          alt={`${event.name} — ${event.city}`}
+          width={1080}
+          height={1440}
+          loading="lazy"
+          className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
+        />
+      </div>
+      <div className="space-y-2 p-4">
+        <h2 className="font-display text-base font-bold uppercase leading-tight">{event.name}</h2>
+        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <MapPin className="size-3.5" /> {event.city}
+          {event.primary_tag ? ` · ${event.primary_tag.name}` : ""}
+        </p>
+        <div className="flex items-center justify-between pt-1">
+          <span className="text-xs uppercase tracking-wide text-muted-foreground">
+            {formatEventDate(event.date_from)}
+          </span>
+        </div>
+      </div>
+    </Link>
   );
 }
 
