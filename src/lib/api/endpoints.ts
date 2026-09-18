@@ -84,6 +84,7 @@ export function parseEventPath(
  */
 export type ResolvedMenuLink =
   | { kind: "internal"; to: "/wydarzenia"; search: { page: 1; q: string; tag: string } }
+  | { kind: "internal"; to: "/strona/$slug"; params: { slug: string } }
   | { kind: "external"; href: string; target: string };
 
 export function resolveMenuLink(item: MenuItem): ResolvedMenuLink | null {
@@ -92,6 +93,9 @@ export function resolveMenuLink(item: MenuItem): ResolvedMenuLink | null {
     const slug = item.link.tag.slug;
     if (!slug) return null;
     return { kind: "internal", to: "/wydarzenia", search: { page: 1, q: "", tag: slug } };
+  }
+  if (item.link.type === "page") {
+    return { kind: "internal", to: "/strona/$slug", params: { slug: item.link.page.slug } };
   }
   if (!item.link.url) return null;
   return { kind: "external", href: item.link.url, target: item.target || "_self" };

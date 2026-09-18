@@ -25,12 +25,13 @@ function FooterNavLink({ item }: { item: MenuItem }) {
   const resolved = resolveMenuLink(item);
   if (!resolved) return <span className="text-muted-foreground">{item.title}</span>;
   if (resolved.kind === "internal") {
-    return (
-      <Link
-        to={resolved.to}
-        search={resolved.search}
-        className="text-muted-foreground transition-colors hover:text-foreground"
-      >
+    const linkClassName = "text-muted-foreground transition-colors hover:text-foreground";
+    return resolved.to === "/wydarzenia" ? (
+      <Link to={resolved.to} search={resolved.search} className={linkClassName}>
+        {item.title}
+      </Link>
+    ) : (
+      <Link to={resolved.to} params={resolved.params} className={linkClassName}>
         {item.title}
       </Link>
     );

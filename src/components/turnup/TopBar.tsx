@@ -12,12 +12,13 @@ function MainNavLink({ item }: { item: MenuItem }) {
   const resolved = resolveMenuLink(item);
   if (!resolved) return <span className="text-white/60">{item.title}</span>;
   if (resolved.kind === "internal") {
-    return (
-      <Link
-        to={resolved.to}
-        search={resolved.search}
-        className="transition-colors hover:text-primary"
-      >
+    const linkClassName = "transition-colors hover:text-primary";
+    return resolved.to === "/wydarzenia" ? (
+      <Link to={resolved.to} search={resolved.search} className={linkClassName}>
+        {item.title}
+      </Link>
+    ) : (
+      <Link to={resolved.to} params={resolved.params} className={linkClassName}>
         {item.title}
       </Link>
     );

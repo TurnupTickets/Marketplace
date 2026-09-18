@@ -305,6 +305,10 @@ export type MenuLink =
   // (possibly absent) SEO name — unlike the non-null `Tag.slug` elsewhere.
   | { type: "tag"; tag: { id: number; name: string; slug: string | null } }
   | { type: "url"; url: string | null }
+  // Static content page (`/strona/{slug}`) — dropped from the response
+  // entirely (never sent as a dangling link) if the page is deleted or
+  // unpublished, same handling as a dangling tag/category reference.
+  | { type: "page"; page: { slug: string; title: string } }
   | null;
 
 export type MenuItem = {
