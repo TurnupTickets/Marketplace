@@ -22,10 +22,10 @@ export const homepageQuery = () => queryOptions({ queryKey: ["homepage"], queryF
 
 export const currentUserQuery = () => queryOptions({ queryKey: ["me"], queryFn: getCurrentUser });
 
-export const eventsPageQuery = (page: number, search = "") =>
+export const eventsPageQuery = (page: number, search = "", tag = "") =>
   queryOptions({
-    queryKey: ["events", "list", page, search],
-    queryFn: () => listEvents(page, 12, search),
+    queryKey: ["events", "list", page, search, tag],
+    queryFn: () => listEvents(page, 12, search, tag),
     placeholderData: keepPreviousData,
   });
 

@@ -243,7 +243,13 @@ export type AccountTicketResource = {
   qr_code: string;
   order_code: string | null;
   ticket_group: { id: number; name: string };
-  event: { id: number; name: string };
+  event: {
+    id: number;
+    name: string;
+    date_from: string | null;
+    cover_url: string | null;
+    canonical_url: string | null;
+  };
 };
 
 export type OrderSummaryResource = {
@@ -294,12 +300,19 @@ export type ContentPageResource = ContentPageListResource & {
  * Navigation menu (api/marketplace/v1)
  * ------------------------------------------------------------------------- */
 
-export type MenuLink = { type: "tag"; tag: Tag } | { type: "url"; url: string | null } | null;
+export type MenuLink =
+  // `Tag.slug` is nullable here specifically — resolved through the tag's
+  // (possibly absent) SEO name — unlike the non-null `Tag.slug` elsewhere.
+  | { type: "tag"; tag: { id: number; name: string; slug: string | null } }
+  | { type: "url"; url: string | null }
+  | null;
 
 export type MenuItem = {
-  id: string;
+  id: number;
   title: string;
-  clickable: string;
+  /** `menu.clickable` is an int(0/1) column cast to bool by the model. */
+  clickable: boolean;
+  /** `menu.target`, e.g. `_self`/`_blank`. */
   target: string;
   link: MenuLink;
   children?: MenuItem[];

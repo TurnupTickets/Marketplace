@@ -2,15 +2,44 @@ import { useState } from "react";
 import { Globe, LogIn, Search, Ticket, User } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { currentUserQuery } from "@/lib/api/queries";
+import { currentUserQuery, menuQuery } from "@/lib/api/queries";
+import { resolveMenuLink } from "@/lib/api/endpoints";
+import type { MenuItem } from "@/lib/api/types";
 import { Logo } from "./Logo";
 import { SearchModal } from "./SearchModal";
+
+function MainNavLink({ item }: { item: MenuItem }) {
+  const resolved = resolveMenuLink(item);
+  if (!resolved) return <span className="text-white/60">{item.title}</span>;
+  if (resolved.kind === "internal") {
+    return (
+      <Link
+        to={resolved.to}
+        search={resolved.search}
+        className="transition-colors hover:text-primary"
+      >
+        {item.title}
+      </Link>
+    );
+  }
+  return (
+    <a
+      href={resolved.href}
+      target={resolved.target}
+      rel={resolved.target === "_blank" ? "noopener noreferrer" : undefined}
+      className="transition-colors hover:text-primary"
+    >
+      {item.title}
+    </a>
+  );
+}
 
 export function TopBar() {
   const [searchOpen, setSearchOpen] = useState(false);
   // Loading and logged-out both render the same "log in" affordance — only a
   // confirmed session swaps it for the profile link, on mobile and desktop alike.
   const { data: user } = useQuery(currentUserQuery());
+  const { data: mainMenu } = useQuery(menuQuery("main"));
 
   return (
     <header
@@ -80,6 +109,14 @@ export function TopBar() {
       <div className="px-3 pb-4 md:hidden">
         <SearchCluster className="flex" onSearch={() => setSearchOpen(true)} />
       </div>
+
+      {mainMenu && mainMenu.items.length > 0 && (
+        <nav className="hidden max-w-[1600px] flex-wrap justify-center gap-x-6 gap-y-2 px-6 pb-3 text-xs font-semibold uppercase tracking-wide text-white/85 md:mx-auto md:flex">
+          {mainMenu.items.map((item) => (
+            <MainNavLink key={item.id} item={item} />
+          ))}
+        </nav>
+      )}
 
       <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
     </header>

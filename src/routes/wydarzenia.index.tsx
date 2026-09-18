@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
-import { ChevronLeft, ChevronRight, MapPin } from "lucide-react";
+import { ChevronLeft, ChevronRight, MapPin, X } from "lucide-react";
 import { PageShell } from "@/components/turnup/PageShell";
 import { resolveMediaUrl } from "@/lib/api/client";
 import { parseEventPath } from "@/lib/api/endpoints";
@@ -13,13 +13,19 @@ import type { EventListResource } from "@/lib/api/types";
 const searchSchema = z.object({
   page: fallback(z.number().int(), 1).default(1),
   q: fallback(z.string(), "").default(""),
+  // Set when arriving from a menu "tag" link (TopBar/SiteFooter,
+  // resolveMenuLink) — filters via the backend's `?tag=` param, distinct
+  // from the free-text `q` search.
+  tag: fallback(z.string(), "").default(""),
 });
 
 export const Route = createFileRoute("/wydarzenia/")({
   validateSearch: zodValidator(searchSchema),
-  loaderDeps: ({ search }) => ({ page: search["page"], q: search["q"] }),
+  loaderDeps: ({ search }) => ({ page: search["page"], q: search["q"], tag: search["tag"] }),
   loader: async ({ context, deps }) => {
-    await context.queryClient.ensureQueryData(eventsPageQuery(Math.max(1, deps.page), deps.q));
+    await context.queryClient.ensureQueryData(
+      eventsPageQuery(Math.max(1, deps.page), deps.q, deps.tag),
+    );
   },
   head: () => ({
     meta: [
@@ -40,9 +46,9 @@ export const Route = createFileRoute("/wydarzenia/")({
 });
 
 function EventsList() {
-  const { page, q } = Route.useSearch();
+  const { page, q, tag } = Route.useSearch();
   const safePage = Math.max(1, page);
-  const { data } = useSuspenseQuery(eventsPageQuery(safePage, q));
+  const { data } = useSuspenseQuery(eventsPageQuery(safePage, q, tag));
   const { current_page, last_page, total } = data.meta;
 
   return (
@@ -51,6 +57,16 @@ function EventsList() {
       title={q ? `Wyniki: ${q}` : "Wszystkie wydarzenia"}
       lead={`Znaleziono ${total} wydarzeń. Strona ${current_page} z ${last_page}.`}
     >
+      {tag && (
+        <Link
+          to="/wydarzenia"
+          search={{ page: 1, q: "", tag: "" }}
+          className="mb-6 inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-xs font-bold uppercase tracking-wide text-foreground transition-colors hover:border-primary"
+        >
+          Kategoria: {tag} <X className="size-3.5" />
+        </Link>
+      )}
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {data.data.map((event) => (
           <EventListCard key={event.id} event={event} />
@@ -58,7 +74,7 @@ function EventsList() {
       </div>
 
       <nav className="mt-10 flex items-center justify-center gap-2">
-        <PageLink page={safePage - 1} q={q} disabled={safePage <= 1} label="Poprzednia">
+        <PageLink page={safePage - 1} q={q} tag={tag} disabled={safePage <= 1} label="Poprzednia">
           <ChevronLeft className="size-4" />
         </PageLink>
 
@@ -66,7 +82,7 @@ function EventsList() {
           <Link
             key={p}
             to="/wydarzenia"
-            search={{ page: p, q }}
+            search={{ page: p, q, tag }}
             className={`flex size-10 items-center justify-center rounded-full text-sm font-bold transition-colors ${
               p === current_page
                 ? "gradient-brand text-primary-foreground"
@@ -77,7 +93,13 @@ function EventsList() {
           </Link>
         ))}
 
-        <PageLink page={safePage + 1} q={q} disabled={safePage >= last_page} label="Następna">
+        <PageLink
+          page={safePage + 1}
+          q={q}
+          tag={tag}
+          disabled={safePage >= last_page}
+          label="Następna"
+        >
           <ChevronRight className="size-4" />
         </PageLink>
       </nav>
@@ -123,12 +145,14 @@ function EventListCard({ event }: { event: EventListResource }) {
 function PageLink({
   page,
   q,
+  tag,
   disabled,
   label,
   children,
 }: {
   page: number;
   q: string;
+  tag: string;
   disabled: boolean;
   label: string;
   children: React.ReactNode;
@@ -146,7 +170,7 @@ function PageLink({
   return (
     <Link
       to="/wydarzenia"
-      search={{ page, q }}
+      search={{ page, q, tag }}
       aria-label={label}
       className="flex size-10 items-center justify-center rounded-full border border-border text-foreground transition-colors hover:border-primary"
     >

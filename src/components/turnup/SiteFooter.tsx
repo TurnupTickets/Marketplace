@@ -1,13 +1,9 @@
 import { Facebook, Handshake, Instagram, Music2 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
-
-const links: { label: string; slug: string }[] = [
-  { label: "Regulamin", slug: "regulamin" },
-  { label: "Polityka prywatności", slug: "polityka-prywatnosci" },
-  { label: "Support", slug: "kontakt" },
-  { label: "Sposoby płatności", slug: "sposoby-platnosci" },
-  { label: "Kontakt", slug: "kontakt" },
-];
+import { useQuery } from "@tanstack/react-query";
+import { resolveMenuLink } from "@/lib/api/endpoints";
+import { menuQuery } from "@/lib/api/queries";
+import type { MenuItem } from "@/lib/api/types";
 
 function SocialLinks({ className = "" }: { className?: string }) {
   return (
@@ -25,7 +21,35 @@ function SocialLinks({ className = "" }: { className?: string }) {
   );
 }
 
+function FooterNavLink({ item }: { item: MenuItem }) {
+  const resolved = resolveMenuLink(item);
+  if (!resolved) return <span className="text-muted-foreground">{item.title}</span>;
+  if (resolved.kind === "internal") {
+    return (
+      <Link
+        to={resolved.to}
+        search={resolved.search}
+        className="text-muted-foreground transition-colors hover:text-foreground"
+      >
+        {item.title}
+      </Link>
+    );
+  }
+  return (
+    <a
+      href={resolved.href}
+      target={resolved.target}
+      rel={resolved.target === "_blank" ? "noopener noreferrer" : undefined}
+      className="text-muted-foreground transition-colors hover:text-foreground"
+    >
+      {item.title}
+    </a>
+  );
+}
+
 export function SiteFooter() {
+  const { data: menu } = useQuery(menuQuery("footer"));
+
   return (
     <footer
       className="mt-8 rounded-t-3xl bg-black px-6 py-10 text-white"
@@ -48,15 +72,8 @@ export function SiteFooter() {
         </button>
 
         <nav className="flex flex-wrap justify-center gap-x-8 gap-y-3 text-sm">
-          {links.map(({ label, slug }) => (
-            <Link
-              key={label}
-              to="/strona/$slug"
-              params={{ slug }}
-              className="text-muted-foreground transition-colors hover:text-foreground"
-            >
-              {label}
-            </Link>
+          {(menu?.items ?? []).map((item) => (
+            <FooterNavLink key={item.id} item={item} />
           ))}
         </nav>
 

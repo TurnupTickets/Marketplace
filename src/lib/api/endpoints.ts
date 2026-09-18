@@ -38,6 +38,7 @@ import type {
   HomepageResource,
   LanguageResource,
   LoginRequest,
+  MenuItem,
   MenuResource,
   OrderCreatedResult,
   OrderDetailResource,
@@ -74,6 +75,28 @@ export function parseEventPath(
   return { tagSlug, eventSlug };
 }
 
+/**
+ * Resolves one `MenuItem` into something a nav component can render,
+ * shared by `TopBar` and `SiteFooter` so both interpret the same union the
+ * same way. `null` means "don't render a link" — either the item is marked
+ * non-clickable, or its reference didn't resolve (deleted tag/no URL; the
+ * tag's own `slug` can itself be `null` for a tag with no SEO name).
+ */
+export type ResolvedMenuLink =
+  | { kind: "internal"; to: "/wydarzenia"; search: { page: 1; q: string; tag: string } }
+  | { kind: "external"; href: string; target: string };
+
+export function resolveMenuLink(item: MenuItem): ResolvedMenuLink | null {
+  if (!item.clickable || !item.link) return null;
+  if (item.link.type === "tag") {
+    const slug = item.link.tag.slug;
+    if (!slug) return null;
+    return { kind: "internal", to: "/wydarzenia", search: { page: 1, q: "", tag: slug } };
+  }
+  if (!item.link.url) return null;
+  return { kind: "external", href: item.link.url, target: item.target || "_self" };
+}
+
 /* ---------------------------------------------------------------------------
  * Homepage / browse
  * ------------------------------------------------------------------------- */
@@ -88,10 +111,11 @@ export async function listEvents(
   page: number,
   perPage = 12,
   search = "",
+  tag = "",
 ): Promise<Paginated<EventListResource>> {
-  if (!API_ENABLED) return mockListEvents(page, perPage, search);
+  if (!API_ENABLED) return mockListEvents(page, perPage, search, tag);
   return apiRequest<Paginated<EventListResource>>("/events", {
-    query: { page, per_page: perPage, search: search || undefined },
+    query: { page, per_page: perPage, search: search || undefined, tag: tag || undefined },
   });
 }
 

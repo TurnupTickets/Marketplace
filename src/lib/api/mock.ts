@@ -308,11 +308,13 @@ export function mockListEvents(
   page: number,
   perPage: number,
   search: string,
+  tag = "",
 ): Paginated<EventListResource> {
   const q = search.trim().toLowerCase();
-  const filtered = q
+  let filtered = q
     ? eventSeeds.filter((s) => `${s.name} ${s.city}`.toLowerCase().includes(q))
     : eventSeeds;
+  if (tag) filtered = filtered.filter((s) => s.tag.slug === tag);
   return paginate(filtered.map(toListResource), page, perPage);
 }
 
@@ -604,19 +606,27 @@ export function mockAccountOrder(code: string): OrderDetailResource {
   return mockOrderDetail(code);
 }
 
+function toAccountTicketEvent(s: EventSeed): AccountTicketResource["event"] {
+  return {
+    id: s.id,
+    name: s.name,
+    date_from: s.dateFrom,
+    cover_url: s.cover,
+    canonical_url: canonicalUrl(s),
+  };
+}
+
 export const mockAccountTickets: Paginated<AccountTicketResource> = paginate<AccountTicketResource>(
-  [
-    {
-      id: 1,
-      status: 1,
-      price: "298.62",
-      currency: "PLN",
-      qr_code: "",
-      order_code: "TU-2026-004512",
-      ticket_group: { id: 2, name: "Bilet VIP" },
-      event: { id: eventSeeds[0]!.id, name: eventSeeds[0]!.name },
-    },
-  ],
+  eventSeeds.slice(0, 3).map((s, i) => ({
+    id: i + 1,
+    status: 1,
+    price: "298.62",
+    currency: "PLN",
+    qr_code: "",
+    order_code: "TU-2026-004512",
+    ticket_group: { id: 2, name: "Bilet VIP" },
+    event: toAccountTicketEvent(s),
+  })),
   1,
   50,
 );
@@ -699,10 +709,10 @@ export function mockMenu(code: "main" | "footer"): MenuResource {
     return {
       code: "footer",
       title: "Stopka",
-      items: mockStaticPages.map((p) => ({
-        id: `page-${p.slug}`,
+      items: mockStaticPages.map((p, i) => ({
+        id: 2000 + i,
         title: p.title,
-        clickable: "1",
+        clickable: true,
         target: "_self",
         link: { type: "url", url: `/strona/${p.slug}` },
       })),
@@ -712,9 +722,9 @@ export function mockMenu(code: "main" | "footer"): MenuResource {
     code: "main",
     title: "Menu główne",
     items: (Object.values(tags) as Tag[]).map((tag) => ({
-      id: `tag-${tag.id}`,
+      id: 1000 + tag.id,
       title: tag.name,
-      clickable: "1",
+      clickable: true,
       target: "_self",
       link: { type: "tag", tag },
     })),
