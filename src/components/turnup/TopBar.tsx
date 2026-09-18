@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Globe, LogIn, Search, Ticket, User } from "lucide-react";
+import { LogIn, Search, Ticket, User } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { currentUserQuery, menuQuery } from "@/lib/api/queries";
 import { resolveMenuLink } from "@/lib/api/endpoints";
 import type { MenuItem } from "@/lib/api/types";
+import { LanguageSwitcher } from "./LanguageSwitcher";
 import { Logo } from "./Logo";
 import { SearchModal } from "./SearchModal";
 
@@ -64,10 +65,7 @@ export function TopBar() {
       </svg>
 
       <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-2 px-3 py-3 md:gap-4 md:px-6">
-        <div className="flex shrink-0 items-center gap-1.5 md:hidden">
-          <Globe className="size-5" strokeWidth={1.5} />
-          <span className="text-sm font-semibold">PL</span>
-        </div>
+        <LanguageSwitcher variant="mobile" />
 
         <Link to="/" className="hidden md:block">
           <Logo />
@@ -80,10 +78,7 @@ export function TopBar() {
         <SearchCluster className="hidden md:flex" onSearch={() => setSearchOpen(true)} />
 
         <div className="flex shrink-0 items-center gap-2 md:gap-4">
-          <div className="hidden items-center gap-2 md:flex">
-            <Globe className="size-6 text-foreground" strokeWidth={1.5} />
-            <span className="text-sm font-semibold">PL</span>
-          </div>
+          <LanguageSwitcher variant="desktop" />
           {user ? (
             <Link
               to="/profil"

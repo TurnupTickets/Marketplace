@@ -334,6 +334,14 @@ export type LanguageResource = {
   code: string;
   lang_code: string;
   country_code: string;
+  /**
+   * Switch target: `https://{domain}{path_prefix ?? ""}{current_path}`.
+   * A language with its own domain (pl_pl -> turnup-tickets.pl) sets only
+   * `domain`; one sharing another's domain under a path (ua_ua ->
+   * turnup-tickets.eu/ua_ua) sets both.
+   */
+  domain: string | null;
+  path_prefix: string | null;
   name: string;
   flag: string;
   is_default: boolean;
