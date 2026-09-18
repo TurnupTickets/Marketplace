@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Loader2, Search, X } from "lucide-react";
@@ -35,7 +36,15 @@ export function SearchModal({ open, onClose }: { open: boolean; onClose: () => v
 
   if (!open) return null;
 
-  return (
+  // Portaled out of <TopBar>'s <header> on purpose: the header locally
+  // overrides --foreground/--muted-foreground/--border/--background (inline
+  // style) to force its own always-dark navbar look. CSS custom properties
+  // inherit through the DOM tree regardless of `position: fixed` visually
+  // escaping to a full-viewport overlay — rendered as a header child, every
+  // `text-foreground` in here would inherit that dark-navbar override
+  // against this modal's own light `bg-card`, i.e. invisible white-on-white
+  // text. Portaling to `document.body` clears the header's variable scope.
+  return createPortal(
     <div className="fixed inset-0 z-[100] flex items-start justify-center p-3 md:p-10">
       <button
         aria-label="Zamknij wyszukiwarkę"
@@ -102,7 +111,7 @@ export function SearchModal({ open, onClose }: { open: boolean; onClose: () => v
                         className="size-14 rounded-xl object-cover"
                       />
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate font-display text-sm font-bold">
+                        <span className="block truncate font-display text-sm font-bold text-foreground">
                           {event.name}
                         </span>
                         <span className="block truncate text-xs text-muted-foreground">
@@ -128,6 +137,7 @@ export function SearchModal({ open, onClose }: { open: boolean; onClose: () => v
           </Link>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
