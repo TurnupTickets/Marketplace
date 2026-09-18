@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Globe } from "lucide-react";
 import { languagesQuery } from "@/lib/api/queries";
@@ -33,14 +34,28 @@ function isActiveLanguage(lang: LanguageResource): boolean {
 
 export function LanguageSwitcher({ variant = "desktop" }: { variant?: "desktop" | "mobile" }) {
   const [open, setOpen] = useState(false);
+  // { top, right } in viewport coordinates, computed from the trigger
+  // button when opened — the dropdown is portaled (see below), so it can't
+  // rely on the button's own `position: relative` ancestor for placement.
+  const [position, setPosition] = useState<{ top: number; right: number } | null>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const { data: languages } = useQuery(languagesQuery());
   const active = languages?.find(isActiveLanguage) ?? languages?.find((l) => l.is_default);
 
+  function toggle() {
+    if (!open && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setPosition({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
+    }
+    setOpen((v) => !v);
+  }
+
   return (
-    <div className="relative">
+    <>
       <button
+        ref={buttonRef}
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggle}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label="Wybierz język"
@@ -59,40 +74,51 @@ export function LanguageSwitcher({ variant = "desktop" }: { variant?: "desktop" 
         </span>
       </button>
 
-      {open && (
-        <>
-          {/* Click-outside catcher */}
-          <button
-            aria-hidden
-            tabIndex={-1}
-            onClick={() => setOpen(false)}
-            className="fixed inset-0 z-40 cursor-default"
-          />
-          <ul
-            role="listbox"
-            className="absolute right-0 top-full z-50 mt-2 min-w-40 overflow-hidden rounded-2xl border border-border bg-card py-1 shadow-xl"
-          >
-            {(languages ?? []).map((lang) => {
-              const url = buildSwitchUrl(lang);
-              const isActive = lang === active;
-              return (
-                <li key={lang.code} role="option" aria-selected={isActive}>
-                  <a
-                    href={url ?? "#"}
-                    aria-disabled={!url}
-                    className={`flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors hover:bg-secondary ${
-                      isActive ? "font-bold text-foreground" : "text-muted-foreground"
-                    } ${!url ? "pointer-events-none opacity-50" : ""}`}
-                  >
-                    <span className="text-base leading-none">{lang.flag}</span>
-                    {lang.name}
-                  </a>
-                </li>
-              );
-            })}
-          </ul>
-        </>
-      )}
-    </div>
+      {open &&
+        position &&
+        // Portaled out of <TopBar>'s <header> on purpose — same reason as
+        // SearchModal: the header locally overrides --foreground via
+        // inline style to force its own always-dark navbar look, so a
+        // dropdown rendered as its DOM child would inherit that dark
+        // --foreground against its own light bg-card (invisible
+        // white-on-white text), regardless of being visually positioned
+        // outside the header via `absolute`/`fixed`.
+        createPortal(
+          <>
+            {/* Click-outside catcher */}
+            <button
+              aria-hidden
+              tabIndex={-1}
+              onClick={() => setOpen(false)}
+              className="fixed inset-0 z-40 cursor-default"
+            />
+            <ul
+              role="listbox"
+              style={{ top: position.top, right: position.right }}
+              className="fixed z-50 min-w-40 overflow-hidden rounded-2xl border border-border bg-card py-1 shadow-xl"
+            >
+              {(languages ?? []).map((lang) => {
+                const url = buildSwitchUrl(lang);
+                const isActive = lang === active;
+                return (
+                  <li key={lang.code} role="option" aria-selected={isActive}>
+                    <a
+                      href={url ?? "#"}
+                      aria-disabled={!url}
+                      className={`flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors hover:bg-secondary ${
+                        isActive ? "font-bold text-foreground" : "text-muted-foreground"
+                      } ${!url ? "pointer-events-none opacity-50" : ""}`}
+                    >
+                      <span className="text-base leading-none">{lang.flag}</span>
+                      {lang.name}
+                    </a>
+                  </li>
+                );
+              })}
+            </ul>
+          </>,
+          document.body,
+        )}
+    </>
   );
 }
