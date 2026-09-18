@@ -1,14 +1,19 @@
 import { ChevronRight, Handshake, MoveLeft, MoveRight } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { resolveMediaUrl } from "@/lib/api/client";
-import type { EventListResource } from "@/lib/api/types";
+import type { AccountTicketResource } from "@/lib/api/types";
+
+/** Only what the thumbnail strip needs — the caller derives this from the
+ * logged-in customer's `AccountTicketResource[]`, deduped by event and
+ * sorted by `date_from` (soonest first). */
+export type UpcomingEvent = AccountTicketResource["event"];
 
 export function PromoRow({
   upcoming,
   isLoggedIn,
   adHref = "#",
 }: {
-  upcoming: EventListResource[];
+  upcoming: UpcomingEvent[];
   isLoggedIn: boolean;
   adHref?: string;
 }) {

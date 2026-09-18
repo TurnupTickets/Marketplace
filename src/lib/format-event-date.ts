@@ -19,7 +19,7 @@ const MONTHS_PL = [
   "grudnia",
 ];
 
-function parseEventDate(dateFrom: string): Date | null {
+export function parseEventDate(dateFrom: string): Date | null {
   const date = new Date(dateFrom.replace(" ", "T"));
   return Number.isNaN(date.getTime()) ? null : date;
 }
