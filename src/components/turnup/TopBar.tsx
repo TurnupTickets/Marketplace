@@ -1,11 +1,16 @@
 import { useState } from "react";
-import { Globe, LogIn, Search, Ticket } from "lucide-react";
+import { Globe, LogIn, Search, Ticket, User } from "lucide-react";
 import { Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { currentUserQuery } from "@/lib/api/queries";
 import { Logo } from "./Logo";
 import { SearchModal } from "./SearchModal";
 
 export function TopBar() {
   const [searchOpen, setSearchOpen] = useState(false);
+  // Loading and logged-out both render the same "log in" affordance — only a
+  // confirmed session swaps it for the profile link, on mobile and desktop alike.
+  const { data: user } = useQuery(currentUserQuery());
 
   return (
     <header
@@ -49,20 +54,26 @@ export function TopBar() {
             <Globe className="size-6 text-foreground" strokeWidth={1.5} />
             <span className="text-sm font-semibold">PL</span>
           </div>
-          <Link
-            to="/profil"
-            aria-label="Profil"
-            className="hidden rounded-full p-1 hover:opacity-70 md:block"
-          >
-            <span className="text-xs font-semibold uppercase tracking-wide">Profil</span>
-          </Link>
-          <Link
-            to="/logowanie"
-            aria-label="Zaloguj się"
-            className="rounded-full p-1 transition-opacity hover:opacity-70"
-          >
-            <LogIn className="size-5 md:size-6" strokeWidth={1.5} />
-          </Link>
+          {user ? (
+            <Link
+              to="/profil"
+              aria-label="Profil"
+              className="flex items-center rounded-full p-1 transition-opacity hover:opacity-70"
+            >
+              <User className="size-5 md:size-6" strokeWidth={1.5} />
+              <span className="hidden text-xs font-semibold uppercase tracking-wide md:ml-1.5 md:inline">
+                Profil
+              </span>
+            </Link>
+          ) : (
+            <Link
+              to="/logowanie"
+              aria-label="Zaloguj się"
+              className="rounded-full p-1 transition-opacity hover:opacity-70"
+            >
+              <LogIn className="size-5 md:size-6" strokeWidth={1.5} />
+            </Link>
+          )}
         </div>
       </div>
 

@@ -220,6 +220,10 @@ export type UpdateProfileRequest = Partial<
 
 export type ChangePasswordRequest = { current_password: string; password: string };
 
+/** `App\Enums\Statuses\TicketStatus`: int-backed enum, serializes as its integer value, not a string. */
+export type TicketStatus = 0 | 1 | 2 | 10 | 99;
+export const TICKET_STATUS = { CANCELLED: 0, ACTIVE: 1, DRAFT: 2, RESERVED: 10, USED: 99 } as const;
+
 /** `App\Http\Resources\Api\V1\TicketResource` — used inside order-detail responses. */
 export type TicketResource = {
   id: number;
