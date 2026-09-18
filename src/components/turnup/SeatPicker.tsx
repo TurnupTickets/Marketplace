@@ -510,6 +510,10 @@ function SchemeSeatCanvas({
       >
         <canvas
           ref={canvasRef}
+          // `dragging` state was set on drag start/end but never read —
+          // the cursor stayed whatever onMouseMove's imperative hover
+          // logic last set instead of switching to "grabbing" mid-pan.
+          style={dragging ? { cursor: "grabbing" } : undefined}
           onWheel={(e) => {
             e.preventDefault();
             const rect = e.currentTarget.getBoundingClientRect();

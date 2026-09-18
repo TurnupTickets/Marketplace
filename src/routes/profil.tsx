@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { CalendarDays, LogOut, Settings, Ticket as TicketIcon, User } from "lucide-react";
 import { PageShell } from "@/components/turnup/PageShell";
