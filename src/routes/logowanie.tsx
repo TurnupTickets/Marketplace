@@ -1,11 +1,12 @@
 import { useLayoutEffect, useRef, useState } from "react";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { Check, Loader2 } from "lucide-react";
 import { z } from "zod";
 import { PageShell } from "@/components/turnup/PageShell";
 import { ApiError } from "@/lib/api/client";
 import { login, register } from "@/lib/api/endpoints";
+import { currentUserQuery } from "@/lib/api/queries";
 
 export const Route = createFileRoute("/logowanie")({
   head: () => ({
@@ -22,6 +23,13 @@ export const Route = createFileRoute("/logowanie")({
       },
     ],
   }),
+  // Mirror of /profil's own guard: an already-authenticated visitor hitting
+  // /logowanie (direct link, bookmark, back-button) should bounce to their
+  // profile instead of seeing the login form again.
+  loader: async ({ context }) => {
+    const user = await context.queryClient.ensureQueryData(currentUserQuery());
+    if (user) throw redirect({ to: "/profil" });
+  },
   component: AuthPage,
 });
 

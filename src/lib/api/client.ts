@@ -7,6 +7,9 @@
  * set, the app falls back to local mock data (see ./mock.ts).
  */
 
+import { createIsomorphicFn } from "@tanstack/react-start";
+import { getRequestHeader, getRequestUrl } from "@tanstack/react-start/server";
+
 const API_ORIGIN = import.meta.env["VITE_API_URL"] ?? "";
 export const API_ENABLED = API_ORIGIN.length > 0;
 
@@ -71,6 +74,48 @@ function readCookie(name: string): string | null {
 }
 
 /**
+ * Server-side (SSR loaders on a full page load — including the full reload
+ * Vite triggers after certain frontend file edits) runs in Node, which has
+ * no browser cookie jar: `fetch(..., { credentials: 'include' })` sends
+ * nothing there. Without this, every SSR call hits the backend anonymously
+ * and `currentUserQuery()` looks logged-out even though the browser's
+ * session cookie is fine — the bug reads as "session dies on reload".
+ *
+ * Two things need forwarding from the incoming request, not just the
+ * session cookie:
+ * - `Cookie` — the actual credential.
+ * - `Origin` — Sanctum's `EnsureFrontendRequestsAreStateful::fromFrontend()`
+ *   only treats a request as stateful (cookie-authenticated) if its
+ *   `Referer`/`Origin` matches `SANCTUM_STATEFUL_DOMAINS`; Node's fetch
+ *   doesn't set one on its own, so without this the backend would fall
+ *   back to token auth (which doesn't exist here) even with the cookie
+ *   attached.
+ *
+ * `createIsomorphicFn` is the framework's compiler-recognized way to keep
+ * `@tanstack/react-start/server` (server-only, Node) out of the browser
+ * bundle — a plain runtime `typeof window` guard around a static import
+ * still trips Vite's import-protection plugin at build time. `.client()`
+ * supplies the no-op used when this same shared module is bundled for the
+ * browser. try/catch covers the case where the server impl runs outside an
+ * active request context (e.g. module init), where
+ * `getRequestHeader`/`getRequestUrl` throw.
+ */
+const getSsrForwardHeaders = createIsomorphicFn()
+  .server((): Record<string, string> => {
+    try {
+      const headers: Record<string, string> = {};
+      const cookie = getRequestHeader("cookie");
+      if (cookie) headers["Cookie"] = cookie;
+      const url = getRequestUrl();
+      if (url) headers["Origin"] = url.origin;
+      return headers;
+    } catch {
+      return {};
+    }
+  })
+  .client((): Record<string, string> => ({}));
+
+/**
  * CSRF is only enforced on `api/v1/auth/*` and `api/v1/account/*` mutations
  * — every other route (marketplace, public event/page reads, guest
  * checkout) is stateless and doesn't need the header.
@@ -98,6 +143,7 @@ async function request<T>(
   const headers: Record<string, string> = {
     Accept: "application/json",
     ...(body ? { "Content-Type": "application/json" } : {}),
+    ...getSsrForwardHeaders(),
     ...options.headers,
   };
 

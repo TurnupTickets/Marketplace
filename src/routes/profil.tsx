@@ -1,10 +1,19 @@
+import { useState } from "react";
 import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { CalendarDays, LogOut, Settings, Ticket as TicketIcon, User } from "lucide-react";
 import { PageShell } from "@/components/turnup/PageShell";
 import { accountOrdersQuery, accountTicketsQuery, currentUserQuery } from "@/lib/api/queries";
-import { logout } from "@/lib/api/endpoints";
-import { TICKET_STATUS, type PaymentStatus, type TicketStatus } from "@/lib/api/types";
+import { changePassword, logout, updateProfile } from "@/lib/api/endpoints";
+import { ApiError, getFieldErrors } from "@/lib/api/client";
+import {
+  TICKET_STATUS,
+  type ChangePasswordRequest,
+  type PaymentStatus,
+  type TicketStatus,
+  type UpdateProfileRequest,
+  type UserResource,
+} from "@/lib/api/types";
 
 export const Route = createFileRoute("/profil")({
   head: () => ({
@@ -84,8 +93,11 @@ function ProfilePage() {
                 label: "Zamówienia",
                 anchor: "zamowienia",
               },
-              // No settings form yet (profile edit / password change) — inert until that lands.
-              { icon: <Settings className="size-4" />, label: "Ustawienia konta", anchor: null },
+              {
+                icon: <Settings className="size-4" />,
+                label: "Ustawienia konta",
+                anchor: "ustawienia",
+              },
             ].map((item) => (
               <button
                 key={item.label}
@@ -185,11 +197,12 @@ function ProfilePage() {
             )}
           </section>
 
-          <section className="grid min-w-0 gap-4 rounded-3xl border border-border bg-card p-6 sm:grid-cols-2">
-            <Detail label="Imię i nazwisko" value={displayName} />
-            <Detail label="E-mail" value={user.email} />
-            <Detail label="Telefon" value={user.phone ?? "—"} />
-            <Detail label="Miasto" value={user.city ?? "—"} />
+          <section id="ustawienia" className="scroll-mt-28 space-y-4">
+            <h2 className="font-display text-xl font-bold uppercase">Ustawienia konta</h2>
+            <div className="grid min-w-0 gap-6 lg:grid-cols-2">
+              <ProfileEditForm user={user} queryClient={queryClient} />
+              <PasswordChangeForm />
+            </div>
           </section>
         </div>
       </div>
@@ -197,11 +210,222 @@ function ProfilePage() {
   );
 }
 
-function Detail({ label, value }: { label: string; value: string }) {
+type ProfileFields = {
+  first_name: string;
+  last_name: string;
+  phone: string;
+};
+
+function ProfileEditForm({
+  user,
+  queryClient,
+}: {
+  user: UserResource;
+  queryClient: ReturnType<typeof useQueryClient>;
+}) {
+  const [fields, setFields] = useState<ProfileFields>({
+    first_name: user.first_name ?? "",
+    last_name: user.last_name ?? "",
+    phone: user.phone ?? "",
+  });
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [saved, setSaved] = useState(false);
+
+  const mutation = useMutation({
+    mutationFn: (input: UpdateProfileRequest) => updateProfile(input),
+    onSuccess: async () => {
+      setFieldErrors({});
+      setSaved(true);
+      await queryClient.invalidateQueries({ queryKey: ["me"] });
+    },
+    onError: (err) => {
+      setSaved(false);
+      const serverFieldErrors = getFieldErrors(err);
+      setFieldErrors(serverFieldErrors ?? {});
+    },
+  });
+
+  function update(key: keyof ProfileFields, value: string) {
+    setFields((prev) => ({ ...prev, [key]: value }));
+    setSaved(false);
+  }
+
+  function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    mutation.mutate({
+      first_name: fields.first_name || null,
+      last_name: fields.last_name || null,
+      phone: fields.phone || null,
+    });
+  }
+
   return (
-    <div className="min-w-0 rounded-2xl bg-secondary p-4">
-      <p className="text-[0.65rem] uppercase tracking-widest text-muted-foreground">{label}</p>
-      <p className="mt-1 break-words text-sm font-semibold">{value}</p>
-    </div>
+    <form
+      onSubmit={onSubmit}
+      className="min-w-0 space-y-4 rounded-3xl border border-border bg-card p-6"
+    >
+      <p className="font-display text-sm font-bold uppercase">Dane konta</p>
+      <SettingsField
+        label="Imię"
+        value={fields.first_name}
+        onChange={(v) => update("first_name", v)}
+        error={fieldErrors["first_name"]}
+      />
+      <SettingsField
+        label="Nazwisko"
+        value={fields.last_name}
+        onChange={(v) => update("last_name", v)}
+        error={fieldErrors["last_name"]}
+      />
+      <SettingsField
+        label="Telefon"
+        value={fields.phone}
+        onChange={(v) => update("phone", v)}
+        error={fieldErrors["phone"]}
+      />
+      <label className="block min-w-0 space-y-1.5">
+        <span className="text-[0.65rem] uppercase tracking-widest text-muted-foreground">
+          E-mail
+        </span>
+        <input
+          type="email"
+          value={user.email}
+          disabled
+          className="w-full rounded-xl border border-border bg-secondary px-3 py-2.5 text-sm text-muted-foreground outline-none disabled:cursor-not-allowed"
+        />
+        <span className="block text-xs text-muted-foreground">
+          Zmiana adresu e-mail jest obecnie niedostępna — wymaga procesu potwierdzenia, którego
+          backend jeszcze nie udostępnia.
+        </span>
+      </label>
+      <div className="flex items-center gap-3">
+        <button
+          type="submit"
+          disabled={mutation.isPending}
+          className="rounded-full bg-primary px-5 py-2.5 text-xs font-bold uppercase text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+        >
+          {mutation.isPending ? "Zapisywanie…" : "Zapisz zmiany"}
+        </button>
+        {saved && <span className="text-xs font-semibold text-primary">Zapisano</span>}
+      </div>
+    </form>
+  );
+}
+
+function PasswordChangeForm() {
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [formError, setFormError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+
+  const mutation = useMutation({
+    mutationFn: (input: ChangePasswordRequest) => changePassword(input),
+    onSuccess: () => {
+      setFieldErrors({});
+      setFormError(null);
+      setSuccess(true);
+      setCurrentPassword("");
+      setNewPassword("");
+    },
+    onError: (err) => {
+      setSuccess(false);
+      // `current_password`-wrong is a 422 but not the standard
+      // `{ message, errors }` shape — it's `{ error: { code } }` — so
+      // `getFieldErrors` won't match it; check the code explicitly.
+      if (
+        err instanceof ApiError &&
+        err.status === 422 &&
+        (err.payload as { error?: { code?: string } } | undefined)?.error?.code ===
+          "INVALID_CURRENT_PASSWORD"
+      ) {
+        setFieldErrors({ current_password: "Nieprawidłowe obecne hasło." });
+        setFormError(null);
+        return;
+      }
+      const serverFieldErrors = getFieldErrors(err);
+      if (serverFieldErrors) {
+        setFieldErrors(serverFieldErrors);
+        setFormError(null);
+      } else {
+        setFieldErrors({});
+        setFormError("Nie udało się zmienić hasła. Spróbuj ponownie.");
+      }
+    },
+  });
+
+  function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setFormError(null);
+    mutation.mutate({ current_password: currentPassword, password: newPassword });
+  }
+
+  return (
+    <form
+      onSubmit={onSubmit}
+      className="min-w-0 space-y-4 rounded-3xl border border-border bg-card p-6"
+    >
+      <p className="font-display text-sm font-bold uppercase">Zmiana hasła</p>
+      <SettingsField
+        label="Obecne hasło"
+        type="password"
+        value={currentPassword}
+        onChange={(v) => {
+          setCurrentPassword(v);
+          setSuccess(false);
+        }}
+        error={fieldErrors["current_password"]}
+      />
+      <SettingsField
+        label="Nowe hasło"
+        type="password"
+        value={newPassword}
+        onChange={(v) => {
+          setNewPassword(v);
+          setSuccess(false);
+        }}
+        error={fieldErrors["password"]}
+      />
+      {formError && <p className="text-xs font-semibold text-destructive">{formError}</p>}
+      <div className="flex items-center gap-3">
+        <button
+          type="submit"
+          disabled={mutation.isPending}
+          className="rounded-full bg-primary px-5 py-2.5 text-xs font-bold uppercase text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+        >
+          {mutation.isPending ? "Zapisywanie…" : "Zmień hasło"}
+        </button>
+        {success && <span className="text-xs font-semibold text-primary">Hasło zmienione</span>}
+      </div>
+    </form>
+  );
+}
+
+function SettingsField({
+  label,
+  value,
+  onChange,
+  error,
+  type = "text",
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  error?: string | undefined;
+  type?: "text" | "password";
+}) {
+  return (
+    <label className="block min-w-0 space-y-1.5">
+      <span className="text-[0.65rem] uppercase tracking-widest text-muted-foreground">
+        {label}
+      </span>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-xl border border-border bg-secondary px-3 py-2.5 text-sm outline-none focus:border-primary"
+      />
+      {error && <span className="block text-xs font-semibold text-destructive">{error}</span>}
+    </label>
   );
 }
