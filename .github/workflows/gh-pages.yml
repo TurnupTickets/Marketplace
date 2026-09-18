@@ -30,9 +30,15 @@ jobs:
 
       - name: Build static SPA bundle
         env:
-          GH_PAGES_BASE: ${{ github.event.repository.name }}
+          # No GH_PAGES_BASE: served from a custom domain's root
+          # (marketplace.turnup-tickets.pl via public/CNAME below), not the
+          # github.io/<repo> subpath GH_PAGES_BASE exists for.
+          #
           # Point the deployed preview at the real API. Override in repo variables
           # (Settings -> Secrets and variables -> Actions -> Variables) once known.
+          # Must be the backend's full origin including any subpath it's
+          # served under (e.g. https://turnup-tickets.pl/new-cms) — see
+          # README's "Backend API" section.
           VITE_API_URL: ${{ vars.VITE_API_URL }}
         run: npx vite build
 
