@@ -24,6 +24,10 @@ export type EventListResource = {
   primary_tag: Tag | null;
 };
 
+/** `App\Enums\Statuses\TicketGroupStatus`: int-backed enum, serializes as its integer value, not a string. */
+export type TicketGroupStatus = 0 | 1 | 2;
+export const TICKET_GROUP_STATUS = { CLOSED: 0, ACTIVE: 1, DRAFT: 2 } as const;
+
 export type EventTicketGroupSummary = {
   id: number;
   name: string;
@@ -31,7 +35,7 @@ export type EventTicketGroupSummary = {
   price: string;
   currency: string;
   available_count: number;
-  status: string;
+  status: TicketGroupStatus;
 };
 
 export type EventResource = {
@@ -47,6 +51,9 @@ export type EventResource = {
   canonical_url: string | null;
   cover_url: string | null;
   gallery_urls: string[];
+  /** Null when the event's address was never geocoded in the admin — detail endpoint only, not on the list resource. */
+  lat: number | null;
+  lng: number | null;
   primary_tag: Tag | null;
   ticket_groups: EventTicketGroupSummary[];
 };
@@ -132,7 +139,7 @@ export type CreateOrderRequest = QuoteRequest & {
 /** `App\Http\Resources\Api\V1\OrderCreatedResource` — 201 response. */
 export type OrderCreatedResult = { success: boolean; payment_url: string; order_id: number };
 
-/** `App\Enums\PaymentStatus`: -1 failed, 0 pending, 1 paid, 2 refunded (display copy owns the mapping, not this type). */
+/** `App\Enums\Statuses\PaymentStatus`: -1 CANCELLED, 0 PENDING, 1 PAID_MANUAL, 2 PAID — no "refunded" case exists. */
 export type PaymentStatus = -1 | 0 | 1 | 2;
 
 /** `App\Http\Resources\Api\V1\OrderStatusResource` — public `GET /orders/{code}`, summary only, no tickets. */

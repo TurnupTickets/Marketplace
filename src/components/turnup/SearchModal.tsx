@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Loader2, Search, X } from "lucide-react";
+import { resolveMediaUrl } from "@/lib/api/client";
 import { parseEventPath } from "@/lib/api/endpoints";
 import { activeEventsQuery } from "@/lib/api/queries";
 
@@ -50,7 +51,7 @@ export function SearchModal({ open, onClose }: { open: boolean; onClose: () => v
             value={term}
             onChange={(e) => setTerm(e.target.value)}
             placeholder="Szukaj eventu, miasta, kategorii…"
-            className="w-full bg-transparent text-base outline-none placeholder:text-muted-foreground"
+            className="w-full bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground"
           />
           {isFetching && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
           <button
@@ -93,7 +94,7 @@ export function SearchModal({ open, onClose }: { open: boolean; onClose: () => v
                       className="flex items-center gap-4 rounded-2xl px-3 py-2 transition-colors hover:bg-secondary"
                     >
                       <img
-                        src={event.cover_url ?? undefined}
+                        src={resolveMediaUrl(event.cover_url)}
                         alt={event.name}
                         width={96}
                         height={96}

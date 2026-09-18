@@ -5,6 +5,7 @@ import {
   type LaravelCollection,
   type LaravelResource,
 } from "./client";
+import { getCartToken } from "../cart-token";
 import {
   mockAccountOrder,
   mockAccountOrders,
@@ -116,9 +117,18 @@ export async function getEvent(tagSlug: string, eventSlug: string): Promise<Even
 
 export async function quoteCart(eventId: number, input: QuoteRequest): Promise<QuoteResult> {
   if (!API_ENABLED) return mockQuote(eventId, input);
+  // A seat's advisory hold has no requester identity without this header —
+  // re-quoting seats this cart already holds would otherwise 422
+  // (SEATS_OCCUPIED) against its own prior quote. Only needed when `seats`
+  // is actually part of the selection.
+  const hasSeats = Object.values(input.seats ?? {}).some((ids) => ids.length > 0);
   const res = await apiRequest<{ success: boolean; data: QuoteResult }>(
     `/events/${eventId}/quote`,
-    { method: "POST", body: input },
+    {
+      method: "POST",
+      body: input,
+      ...(hasSeats ? { headers: { "X-Cart-Token": getCartToken() } } : {}),
+    },
   );
   return res.data;
 }

@@ -1,4 +1,5 @@
 import { ChevronRight, Handshake, MoveLeft, MoveRight } from "lucide-react";
+import { resolveMediaUrl } from "@/lib/api/client";
 import type { EventListResource } from "@/lib/api/types";
 
 export function PromoRow({
@@ -29,7 +30,7 @@ export function PromoRow({
             {upcoming.slice(0, 3).map((event) => (
               <img
                 key={event.id}
-                src={event.cover_url ?? undefined}
+                src={resolveMediaUrl(event.cover_url)}
                 alt={event.name}
                 width={1024}
                 height={1024}

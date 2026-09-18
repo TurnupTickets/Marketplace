@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { ClientOnly, createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { CalendarDays, ChevronDown, MapPin, Minus, Plus, ShieldCheck } from "lucide-react";
 import { PageShell } from "@/components/turnup/PageShell";
@@ -13,9 +13,28 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useQuote } from "@/hooks/use-quote";
+import { ApiError, resolveMediaUrl } from "@/lib/api/client";
 import { eventDetailQuery, seatMapQuery } from "@/lib/api/queries";
 import { formatEventDateTime } from "@/lib/format-event-date";
+import { TICKET_GROUP_STATUS } from "@/lib/api/types";
 import type { EventTicketGroupSummary, SeatSelection, TicketSelection } from "@/lib/api/types";
+
+// Deferred as a lazy import (not a static one) so leaflet's module-level side
+// effects — CSS import, default-icon prototype patch — never execute during
+// SSR, where `ClientOnly` alone only suppresses the render, not the import.
+const LocationMap = lazy(() =>
+  import("@/components/turnup/LocationMap").then((m) => ({ default: m.LocationMap })),
+);
+
+/** `POST .../quote` 422 shape when seats are advisorily held by a different cart's token. */
+function parseOccupiedSeatIds(error: unknown): Set<number> {
+  if (!(error instanceof ApiError) || error.status !== 422) return new Set();
+  const payload = error.payload as { error?: { code?: string; occupied_seats?: unknown } } | null;
+  if (payload?.error?.code !== "SEATS_OCCUPIED" || !Array.isArray(payload.error.occupied_seats)) {
+    return new Set();
+  }
+  return new Set(payload.error.occupied_seats.filter((id): id is number => typeof id === "number"));
+}
 
 export const Route = createFileRoute("/wydarzenia/$tagSlug/$eventSlug")({
   loader: async ({ context, params }) => {
@@ -130,12 +149,33 @@ function EventDetail() {
 
   const {
     data: quote,
+    error: quoteRawError,
     isLoading: quoteLoading,
     isFetching: quoteFetching,
     isError: quoteErrored,
     isDebouncing: quoteDebouncing,
     hasTickets: quoteHasTickets,
   } = useQuote(event.id, quoteRequest);
+
+  const occupiedSeatIds = useMemo(() => parseOccupiedSeatIds(quoteRawError), [quoteRawError]);
+
+  // A seat named in a SEATS_OCCUPIED response is stale forever until
+  // dropped — re-quoting the same selection would just 422 the same way
+  // again. Strip it from the confirmed selection so the next quote (and
+  // the picker's grayed-out state) reflect reality.
+  useEffect(() => {
+    if (occupiedSeatIds.size === 0) return;
+    setSeatsByGroup((prev) => {
+      let changed = false;
+      const next: SeatSelection = {};
+      for (const [groupId, ids] of Object.entries(prev)) {
+        const filtered = ids.filter((id) => !occupiedSeatIds.has(id));
+        if (filtered.length !== ids.length) changed = true;
+        next[Number(groupId)] = filtered;
+      }
+      return changed ? next : prev;
+    });
+  }, [occupiedSeatIds]);
 
   // Quote is stale/untrustworthy while: no tickets selected yet, the
   // debounce window hasn't settled, or a request is in flight — in every
@@ -191,7 +231,7 @@ function EventDetail() {
           <div className="grid gap-6 lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)] lg:items-start">
             <div className="mx-auto aspect-[3/4] w-full max-w-sm overflow-hidden rounded-3xl border border-border lg:mx-0 lg:max-w-none">
               <img
-                src={event.cover_url ?? undefined}
+                src={resolveMediaUrl(event.cover_url)}
                 alt={`${event.name} — plakat wydarzenia`}
                 width={1080}
                 height={1440}
@@ -219,8 +259,15 @@ function EventDetail() {
                 />
               </dl>
 
-              {/* No venue-coordinate field exists on the real EventResource
-                  (street/place are plain strings) — location map dropped. */}
+              {event.lat != null && event.lng != null && (
+                <div className="pt-2">
+                  <ClientOnly>
+                    <Suspense fallback={null}>
+                      <LocationMap lat={event.lat} lng={event.lng} label={event.place} />
+                    </Suspense>
+                  </ClientOnly>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -342,14 +389,30 @@ function EventDetail() {
             )}
           </div>
 
-          {/* Order-form route + navigation land in Phase 6 — CTA stays inert
-              until then. */}
-          <span
-            aria-disabled
-            className="gradient-brand-soft block w-full rounded-full px-6 py-4 text-center text-sm font-bold uppercase text-primary-foreground opacity-40"
-          >
-            Przejdź do płatności
-          </span>
+          {totalCount === 0 || quotePending ? (
+            <span
+              aria-disabled
+              className="gradient-brand-soft block w-full rounded-full px-6 py-4 text-center text-sm font-bold uppercase text-primary-foreground opacity-40"
+            >
+              Przejdź do płatności
+            </span>
+          ) : (
+            <Link
+              to="/wydarzenia/$tagSlug/$eventSlug/zamowienie"
+              params={{ tagSlug, eventSlug }}
+              search={{
+                tickets,
+                seats: seatsByGroup,
+                discount: appliedDiscountCode,
+                sms: sms ? 1 : 0,
+                delivery: delivery ? 1 : 0,
+                ticket_as_gift: giftTicket ? 1 : 0,
+              }}
+              className="gradient-brand-soft block w-full rounded-full px-6 py-4 text-center text-sm font-bold uppercase text-primary-foreground"
+            >
+              Przejdź do płatności
+            </Link>
+          )}
 
           <Link
             to="/znajdz-bilet"
@@ -373,6 +436,7 @@ function EventDetail() {
             <SeatPicker
               seatMap={seatMap}
               selectedByGroup={draftSeats}
+              occupiedSeatIds={occupiedSeatIds}
               onToggleSeat={toggleDraftSeat}
             />
 
@@ -414,7 +478,7 @@ function GroupRow({
   seated: boolean;
   onChange: (delta: number) => void;
 }) {
-  const soldOut = group.status !== "on_sale" || group.available_count <= 0;
+  const soldOut = group.status !== TICKET_GROUP_STATUS.ACTIVE || group.available_count <= 0;
 
   return (
     <li className="flex gap-4 py-5">

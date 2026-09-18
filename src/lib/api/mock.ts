@@ -3,6 +3,7 @@ import delfinalia from "@/assets/event-delfinalia.jpg";
 import jmsn from "@/assets/event-jmsn.jpg";
 import scrap from "@/assets/event-scrap.jpg";
 import { ApiError } from "./client";
+import { TICKET_GROUP_STATUS } from "./types";
 import type {
   AccountTicketResource,
   ContentPageListResource,
@@ -205,7 +206,7 @@ const mockTicketGroups: EventTicketGroupSummary[] = [
     price: "197.30",
     currency: "PLN",
     available_count: 340,
-    status: "on_sale",
+    status: TICKET_GROUP_STATUS.ACTIVE,
   },
   {
     id: 2,
@@ -213,7 +214,7 @@ const mockTicketGroups: EventTicketGroupSummary[] = [
     price: "298.62",
     currency: "PLN",
     available_count: 40,
-    status: "on_sale",
+    status: TICKET_GROUP_STATUS.ACTIVE,
   },
   {
     id: 3,
@@ -221,11 +222,25 @@ const mockTicketGroups: EventTicketGroupSummary[] = [
     price: "95.99",
     currency: "PLN",
     available_count: 120,
-    status: "on_sale",
+    status: TICKET_GROUP_STATUS.ACTIVE,
   },
 ];
 
+/** Hand-authored per-city coordinates — deliberately incomplete so some mock
+ * events exercise the "never geocoded" (lat/lng null, hidden map) path. */
+const cityCoords: Record<string, { lat: number; lng: number }> = {
+  Warszawa: { lat: 52.2297, lng: 21.0122 },
+  Kraków: { lat: 50.0647, lng: 19.945 },
+  Gdańsk: { lat: 54.352, lng: 18.6466 },
+  Poznań: { lat: 52.4064, lng: 16.9252 },
+  Wrocław: { lat: 51.1079, lng: 17.0385 },
+  Łódź: { lat: 51.7592, lng: 19.456 },
+  // Katowice/Szczecin/Gdynia/Lublin/Toruń and further cities intentionally
+  // omitted here.
+};
+
 function toDetailResource(s: EventSeed): EventResource {
+  const coords = cityCoords[s.city];
   return {
     id: s.id,
     name: s.name,
@@ -240,6 +255,8 @@ function toDetailResource(s: EventSeed): EventResource {
     canonical_url: canonicalUrl(s),
     cover_url: s.cover,
     gallery_urls: [s.cover],
+    lat: coords?.lat ?? null,
+    lng: coords?.lng ?? null,
     primary_tag: s.tag,
     ticket_groups: mockTicketGroups,
   };
@@ -413,7 +430,7 @@ function mockCustomSeatMap(): SeatMapResource {
         row: String(row),
         number: String(col),
         ticket_group_id: groupId,
-        status: seatId % 7 === 0 ? "occupied" : "available",
+        status: seatId % 7 === 0 ? "disable" : "enable",
         sold: seatId % 7 === 0,
         color: groupId === 2 ? "#f59e0b" : groupId === 1 ? "#6366f1" : "#10b981",
       });
@@ -455,7 +472,7 @@ function mockSchemeSeatMap(): SeatMapResource {
       row: String(row + 1),
       number: String(col + 1),
       ticket_group_id: 2,
-      status: i === 5 ? "occupied" : "available",
+      status: i === 5 ? "disable" : "enable",
       sold: i === 5,
       color: "#f59e0b",
       cx: 24 + col * spacing,

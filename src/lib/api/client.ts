@@ -10,6 +10,20 @@
 const API_ORIGIN = import.meta.env["VITE_API_URL"] ?? "";
 export const API_ENABLED = API_ORIGIN.length > 0;
 
+/**
+ * `cover_url`/`gallery_urls` (Spatie Media Library's `getFirstMediaUrl()`)
+ * come back as server-relative paths (`/storage/...`), not absolute URLs —
+ * resolving them against the frontend's own origin (the browser's default
+ * for a bare `/...` src) would 404 since the media actually lives on the
+ * API origin. Already-absolute URLs (mock data, or if the backend changes
+ * this later) pass through untouched.
+ */
+export function resolveMediaUrl(path: string | null | undefined): string | undefined {
+  if (!path) return undefined;
+  if (/^(https?:)?\/\//.test(path) || path.startsWith("data:")) return path;
+  return `${API_ORIGIN}${path}`;
+}
+
 export class ApiError extends Error {
   status: number;
   payload: unknown;
@@ -26,6 +40,8 @@ type RequestOptions = {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
   query?: Record<string, string | number | boolean | undefined>;
+  /** Extra headers merged in on top of the defaults (Accept/Content-Type/CSRF). */
+  headers?: Record<string, string>;
   signal?: AbortSignal;
 };
 
@@ -82,6 +98,7 @@ async function request<T>(
   const headers: Record<string, string> = {
     Accept: "application/json",
     ...(body ? { "Content-Type": "application/json" } : {}),
+    ...options.headers,
   };
 
   if (needsCsrf(prefix, method, path)) {

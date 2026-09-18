@@ -15,9 +15,9 @@ import { Route as ProfilRouteImport } from './routes/profil'
 import { Route as ZnajdzBiletRouteImport } from './routes/znajdz-bilet'
 import { Route as StronaSlugRouteImport } from './routes/strona.$slug'
 import { Route as WydarzeniaIndexRouteImport } from './routes/wydarzenia.index'
-import { Route as WydarzeniaSlugPotwierdzenieRouteImport } from './routes/wydarzenia.$slug_.potwierdzenie'
-import { Route as WydarzeniaSlugZamowienieRouteImport } from './routes/wydarzenia.$slug_.zamowienie'
 import { Route as WydarzeniaTagSlugEventSlugRouteImport } from './routes/wydarzenia.$tagSlug.$eventSlug'
+import { Route as WydarzeniaTagSlugEventSlugPotwierdzenieRouteImport } from './routes/wydarzenia.$tagSlug.$eventSlug_.potwierdzenie'
+import { Route as WydarzeniaTagSlugEventSlugZamowienieRouteImport } from './routes/wydarzenia.$tagSlug.$eventSlug_.zamowienie'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -49,22 +49,22 @@ const WydarzeniaIndexRoute = WydarzeniaIndexRouteImport.update({
   path: '/wydarzenia/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const WydarzeniaSlugPotwierdzenieRoute =
-  WydarzeniaSlugPotwierdzenieRouteImport.update({
-    id: '/wydarzenia/$slug_/potwierdzenie',
-    path: '/wydarzenia/$slug/potwierdzenie',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const WydarzeniaSlugZamowienieRoute =
-  WydarzeniaSlugZamowienieRouteImport.update({
-    id: '/wydarzenia/$slug_/zamowienie',
-    path: '/wydarzenia/$slug/zamowienie',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const WydarzeniaTagSlugEventSlugRoute =
   WydarzeniaTagSlugEventSlugRouteImport.update({
     id: '/wydarzenia/$tagSlug/$eventSlug',
     path: '/wydarzenia/$tagSlug/$eventSlug',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const WydarzeniaTagSlugEventSlugPotwierdzenieRoute =
+  WydarzeniaTagSlugEventSlugPotwierdzenieRouteImport.update({
+    id: '/wydarzenia/$tagSlug/$eventSlug_/potwierdzenie',
+    path: '/wydarzenia/$tagSlug/$eventSlug/potwierdzenie',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const WydarzeniaTagSlugEventSlugZamowienieRoute =
+  WydarzeniaTagSlugEventSlugZamowienieRouteImport.update({
+    id: '/wydarzenia/$tagSlug/$eventSlug_/zamowienie',
+    path: '/wydarzenia/$tagSlug/$eventSlug/zamowienie',
     getParentRoute: () => rootRouteImport,
   } as any)
 
@@ -75,9 +75,9 @@ export interface FileRoutesByFullPath {
   '/znajdz-bilet': typeof ZnajdzBiletRoute
   '/strona/$slug': typeof StronaSlugRoute
   '/wydarzenia/': typeof WydarzeniaIndexRoute
-  '/wydarzenia/$slug/potwierdzenie': typeof WydarzeniaSlugPotwierdzenieRoute
-  '/wydarzenia/$slug/zamowienie': typeof WydarzeniaSlugZamowienieRoute
   '/wydarzenia/$tagSlug/$eventSlug': typeof WydarzeniaTagSlugEventSlugRoute
+  '/wydarzenia/$tagSlug/$eventSlug/potwierdzenie': typeof WydarzeniaTagSlugEventSlugPotwierdzenieRoute
+  '/wydarzenia/$tagSlug/$eventSlug/zamowienie': typeof WydarzeniaTagSlugEventSlugZamowienieRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -86,9 +86,9 @@ export interface FileRoutesByTo {
   '/znajdz-bilet': typeof ZnajdzBiletRoute
   '/strona/$slug': typeof StronaSlugRoute
   '/wydarzenia': typeof WydarzeniaIndexRoute
-  '/wydarzenia/$slug/potwierdzenie': typeof WydarzeniaSlugPotwierdzenieRoute
-  '/wydarzenia/$slug/zamowienie': typeof WydarzeniaSlugZamowienieRoute
   '/wydarzenia/$tagSlug/$eventSlug': typeof WydarzeniaTagSlugEventSlugRoute
+  '/wydarzenia/$tagSlug/$eventSlug/potwierdzenie': typeof WydarzeniaTagSlugEventSlugPotwierdzenieRoute
+  '/wydarzenia/$tagSlug/$eventSlug/zamowienie': typeof WydarzeniaTagSlugEventSlugZamowienieRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -98,9 +98,9 @@ export interface FileRoutesById {
   '/znajdz-bilet': typeof ZnajdzBiletRoute
   '/strona/$slug': typeof StronaSlugRoute
   '/wydarzenia/': typeof WydarzeniaIndexRoute
-  '/wydarzenia/$slug_/potwierdzenie': typeof WydarzeniaSlugPotwierdzenieRoute
-  '/wydarzenia/$slug_/zamowienie': typeof WydarzeniaSlugZamowienieRoute
   '/wydarzenia/$tagSlug/$eventSlug': typeof WydarzeniaTagSlugEventSlugRoute
+  '/wydarzenia/$tagSlug/$eventSlug_/potwierdzenie': typeof WydarzeniaTagSlugEventSlugPotwierdzenieRoute
+  '/wydarzenia/$tagSlug/$eventSlug_/zamowienie': typeof WydarzeniaTagSlugEventSlugZamowienieRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -111,9 +111,9 @@ export interface FileRouteTypes {
     | '/znajdz-bilet'
     | '/strona/$slug'
     | '/wydarzenia/'
-    | '/wydarzenia/$slug/potwierdzenie'
-    | '/wydarzenia/$slug/zamowienie'
     | '/wydarzenia/$tagSlug/$eventSlug'
+    | '/wydarzenia/$tagSlug/$eventSlug/potwierdzenie'
+    | '/wydarzenia/$tagSlug/$eventSlug/zamowienie'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -122,9 +122,9 @@ export interface FileRouteTypes {
     | '/znajdz-bilet'
     | '/strona/$slug'
     | '/wydarzenia'
-    | '/wydarzenia/$slug/potwierdzenie'
-    | '/wydarzenia/$slug/zamowienie'
     | '/wydarzenia/$tagSlug/$eventSlug'
+    | '/wydarzenia/$tagSlug/$eventSlug/potwierdzenie'
+    | '/wydarzenia/$tagSlug/$eventSlug/zamowienie'
   id:
     | '__root__'
     | '/'
@@ -133,9 +133,9 @@ export interface FileRouteTypes {
     | '/znajdz-bilet'
     | '/strona/$slug'
     | '/wydarzenia/'
-    | '/wydarzenia/$slug_/potwierdzenie'
-    | '/wydarzenia/$slug_/zamowienie'
     | '/wydarzenia/$tagSlug/$eventSlug'
+    | '/wydarzenia/$tagSlug/$eventSlug_/potwierdzenie'
+    | '/wydarzenia/$tagSlug/$eventSlug_/zamowienie'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -145,9 +145,9 @@ export interface RootRouteChildren {
   ZnajdzBiletRoute: typeof ZnajdzBiletRoute
   StronaSlugRoute: typeof StronaSlugRoute
   WydarzeniaIndexRoute: typeof WydarzeniaIndexRoute
-  WydarzeniaSlugPotwierdzenieRoute: typeof WydarzeniaSlugPotwierdzenieRoute
-  WydarzeniaSlugZamowienieRoute: typeof WydarzeniaSlugZamowienieRoute
   WydarzeniaTagSlugEventSlugRoute: typeof WydarzeniaTagSlugEventSlugRoute
+  WydarzeniaTagSlugEventSlugPotwierdzenieRoute: typeof WydarzeniaTagSlugEventSlugPotwierdzenieRoute
+  WydarzeniaTagSlugEventSlugZamowienieRoute: typeof WydarzeniaTagSlugEventSlugZamowienieRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -194,25 +194,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WydarzeniaIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/wydarzenia/$slug_/potwierdzenie': {
-      id: '/wydarzenia/$slug_/potwierdzenie'
-      path: '/wydarzenia/$slug/potwierdzenie'
-      fullPath: '/wydarzenia/$slug/potwierdzenie'
-      preLoaderRoute: typeof WydarzeniaSlugPotwierdzenieRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/wydarzenia/$slug_/zamowienie': {
-      id: '/wydarzenia/$slug_/zamowienie'
-      path: '/wydarzenia/$slug/zamowienie'
-      fullPath: '/wydarzenia/$slug/zamowienie'
-      preLoaderRoute: typeof WydarzeniaSlugZamowienieRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/wydarzenia/$tagSlug/$eventSlug': {
       id: '/wydarzenia/$tagSlug/$eventSlug'
       path: '/wydarzenia/$tagSlug/$eventSlug'
       fullPath: '/wydarzenia/$tagSlug/$eventSlug'
       preLoaderRoute: typeof WydarzeniaTagSlugEventSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/wydarzenia/$tagSlug/$eventSlug_/potwierdzenie': {
+      id: '/wydarzenia/$tagSlug/$eventSlug_/potwierdzenie'
+      path: '/wydarzenia/$tagSlug/$eventSlug/potwierdzenie'
+      fullPath: '/wydarzenia/$tagSlug/$eventSlug/potwierdzenie'
+      preLoaderRoute: typeof WydarzeniaTagSlugEventSlugPotwierdzenieRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/wydarzenia/$tagSlug/$eventSlug_/zamowienie': {
+      id: '/wydarzenia/$tagSlug/$eventSlug_/zamowienie'
+      path: '/wydarzenia/$tagSlug/$eventSlug/zamowienie'
+      fullPath: '/wydarzenia/$tagSlug/$eventSlug/zamowienie'
+      preLoaderRoute: typeof WydarzeniaTagSlugEventSlugZamowienieRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -225,9 +225,11 @@ const rootRouteChildren: RootRouteChildren = {
   ZnajdzBiletRoute: ZnajdzBiletRoute,
   StronaSlugRoute: StronaSlugRoute,
   WydarzeniaIndexRoute: WydarzeniaIndexRoute,
-  WydarzeniaSlugPotwierdzenieRoute: WydarzeniaSlugPotwierdzenieRoute,
-  WydarzeniaSlugZamowienieRoute: WydarzeniaSlugZamowienieRoute,
   WydarzeniaTagSlugEventSlugRoute: WydarzeniaTagSlugEventSlugRoute,
+  WydarzeniaTagSlugEventSlugPotwierdzenieRoute:
+    WydarzeniaTagSlugEventSlugPotwierdzenieRoute,
+  WydarzeniaTagSlugEventSlugZamowienieRoute:
+    WydarzeniaTagSlugEventSlugZamowienieRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -12,8 +12,23 @@ const WHEEL_ZOOM_FACTOR = 1.1;
 const BUTTON_ZOOM_FACTOR = 1.2;
 const FIT_PADDING = 24;
 
-function isSeatDisabled(seat: SeatMapSeat): boolean {
-  return seat.sold || seat.status === "occupied" || seat.ticket_group_id == null;
+/**
+ * `App\Enums\Statuses\SeatInEventStatusEnum` (int-backed: DISABLE=0, ENABLE=1)
+ * serializes here as its lowercased case *name* — `"disable"`/`"enable"`,
+ * not `"occupied"`/`"available"`. The enum itself has no "held" or "sold"
+ * state at all: `sold` is a separate boolean field, and a seat someone
+ * else's cart is advisorily holding (`X-Cart-Token`, 15min) isn't in this
+ * response at all — that only surfaces as a `422 SEATS_OCCUPIED` on quote,
+ * which is why `occupiedSeatIds` (reactive, not from the seat map itself)
+ * is a separate parameter here.
+ */
+function isSeatDisabled(seat: SeatMapSeat, occupiedSeatIds: Set<number>): boolean {
+  return (
+    seat.sold ||
+    seat.status === "disable" ||
+    seat.ticket_group_id == null ||
+    occupiedSeatIds.has(seat.id)
+  );
 }
 
 function seatTitle(seat: SeatMapSeat): string {
@@ -98,10 +113,12 @@ const PAN_ZOOM_HINT = "Przybliż kółkiem myszy, przesuń widok Ctrl/Cmd + lewy
 function CustomSeatPicker({
   seatMap,
   selectedIds,
+  occupiedSeatIds,
   onToggleSeat,
 }: {
   seatMap: Extract<SeatMapResource, { type: "custom" }>;
   selectedIds: Set<number>;
+  occupiedSeatIds: Set<number>;
   onToggleSeat: (seatId: number, groupId: number) => void;
 }) {
   const [transform, setTransform] = useState({ scale: 1, x: 0, y: 0 });
@@ -174,7 +191,7 @@ function CustomSeatPicker({
             style={{ gridTemplateColumns: `repeat(${seatMap.grid.cols}, minmax(1.75rem, 1fr))` }}
           >
             {seatMap.seats.map((seat) => {
-              const disabled = isSeatDisabled(seat);
+              const disabled = isSeatDisabled(seat, occupiedSeatIds);
               const selected = selectedIds.has(seat.id);
               const row = Number(seat.row);
               const col = Number(seat.number);
@@ -266,10 +283,12 @@ function fitTransform(
 function SchemeSeatCanvas({
   seatMap,
   selectedIds,
+  occupiedSeatIds,
   onToggleSeat,
 }: {
   seatMap: Extract<SeatMapResource, { type: "scheme" }>;
   selectedIds: Set<number>;
+  occupiedSeatIds: Set<number>;
   onToggleSeat: (seatId: number, groupId: number) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -312,7 +331,7 @@ function SchemeSeatCanvas({
       ctx.translate(transform.x, transform.y);
 
       if (seat) {
-        const disabled = isSeatDisabled(seat);
+        const disabled = isSeatDisabled(seat, occupiedSeatIds);
         const selected = selectedIds.has(seat.id);
         ctx.globalAlpha = disabled ? 0.4 : 1;
         ctx.fillStyle = disabled
@@ -337,7 +356,7 @@ function SchemeSeatCanvas({
       ctx.restore();
     }
     ctx.restore();
-  }, [seatByRealId, selectedIds]);
+  }, [seatByRealId, selectedIds, occupiedSeatIds]);
 
   // `draw` closes over `seatByRealId`/`selectedIds`, so its identity changes
   // on every selection change — keeping it in an effect's dependency array
@@ -518,7 +537,11 @@ function SchemeSeatCanvas({
             const hit = hitTest(px, py);
             const seat = hit ? seatByRealId.get(hit.id) : undefined;
             e.currentTarget.style.cursor =
-              seat && !isSeatDisabled(seat) ? "pointer" : ctrlHeld ? "grab" : "default";
+              seat && !isSeatDisabled(seat, occupiedSeatIds)
+                ? "pointer"
+                : ctrlHeld
+                  ? "grab"
+                  : "default";
             setHoveredSeat(seat ? { seat, x: px, y: py } : null);
           }}
           onMouseLeave={() => setHoveredSeat(null)}
@@ -527,7 +550,8 @@ function SchemeSeatCanvas({
             const hit = hitTest(e.clientX - rect.left, e.clientY - rect.top);
             if (!hit) return;
             const seat = seatByRealId.get(hit.id);
-            if (seat && !isSeatDisabled(seat)) onToggleSeat(seat.id, seat.ticket_group_id!);
+            if (seat && !isSeatDisabled(seat, occupiedSeatIds))
+              onToggleSeat(seat.id, seat.ticket_group_id!);
           }}
           className="size-full"
         />
@@ -547,10 +571,13 @@ function SchemeSeatCanvas({
 export function SeatPicker({
   seatMap,
   selectedByGroup,
+  occupiedSeatIds = new Set(),
   onToggleSeat,
 }: {
   seatMap: SeatMapResource;
   selectedByGroup: SeatSelection;
+  /** Seats a `422 SEATS_OCCUPIED` from the last quote attempt named — grayed out same as sold/disabled. */
+  occupiedSeatIds?: Set<number>;
   onToggleSeat: (seatId: number, groupId: number) => void;
 }) {
   if (seatMap.type === "none") return null;
@@ -570,10 +597,25 @@ export function SeatPicker({
           </span>
         ))}
       </div>
+      {occupiedSeatIds.size > 0 && (
+        <p className="text-xs text-destructive">
+          Część wybranych miejsc jest już zajęta — usunęliśmy je z koszyka, wybierz inne.
+        </p>
+      )}
       {seatMap.type === "scheme" ? (
-        <SchemeSeatCanvas seatMap={seatMap} selectedIds={selectedIds} onToggleSeat={onToggleSeat} />
+        <SchemeSeatCanvas
+          seatMap={seatMap}
+          selectedIds={selectedIds}
+          occupiedSeatIds={occupiedSeatIds}
+          onToggleSeat={onToggleSeat}
+        />
       ) : (
-        <CustomSeatPicker seatMap={seatMap} selectedIds={selectedIds} onToggleSeat={onToggleSeat} />
+        <CustomSeatPicker
+          seatMap={seatMap}
+          selectedIds={selectedIds}
+          occupiedSeatIds={occupiedSeatIds}
+          onToggleSeat={onToggleSeat}
+        />
       )}
     </div>
   );

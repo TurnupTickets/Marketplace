@@ -4,6 +4,7 @@ import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { ChevronLeft, ChevronRight, MapPin } from "lucide-react";
 import { PageShell } from "@/components/turnup/PageShell";
+import { resolveMediaUrl } from "@/lib/api/client";
 import { parseEventPath } from "@/lib/api/endpoints";
 import { eventsPageQuery } from "@/lib/api/queries";
 import { formatEventDate } from "@/lib/format-event-date";
@@ -95,7 +96,7 @@ function EventListCard({ event }: { event: EventListResource }) {
     >
       <div className="aspect-[3/4] overflow-hidden">
         <img
-          src={event.cover_url ?? undefined}
+          src={resolveMediaUrl(event.cover_url)}
           alt={`${event.name} — ${event.city}`}
           width={1080}
           height={1440}
