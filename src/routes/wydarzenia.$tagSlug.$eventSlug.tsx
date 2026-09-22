@@ -15,6 +15,7 @@ import {
 import { useQuote } from "@/hooks/use-quote";
 import { ApiError, onEventImageError, resolveMediaUrl } from "@/lib/api/client";
 import { eventDetailQuery, seatMapQuery } from "@/lib/api/queries";
+import { normalizeCmsHtml } from "@/lib/decode-cms-html";
 import { formatEventDateTime } from "@/lib/format-event-date";
 import { TICKET_GROUP_STATUS } from "@/lib/api/types";
 import type { EventTicketGroupSummary, SeatSelection, TicketSelection } from "@/lib/api/types";
@@ -249,7 +250,7 @@ function EventDetail() {
                 // Same-origin admin content, not user input.
                 <div
                   className="min-w-0 space-y-4 break-words text-sm leading-relaxed text-muted-foreground md:text-base [&_a]:text-primary [&_a]:underline [&_h2]:mt-6 [&_h2]:font-display [&_h2]:text-lg [&_h2]:font-bold [&_h2]:uppercase [&_h2]:text-foreground [&_h2]:first:mt-0 [&_li]:ml-5 [&_ol]:list-decimal [&_p]:mb-4 [&_strong]:text-foreground [&_ul]:list-disc"
-                  dangerouslySetInnerHTML={{ __html: event.description }}
+                  dangerouslySetInnerHTML={{ __html: normalizeCmsHtml(event.description) }}
                 />
               )}
 
