@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Loader2, Search, X } from "lucide-react";
-import { resolveMediaUrl } from "@/lib/api/client";
+import { onEventImageError, resolveMediaUrl } from "@/lib/api/client";
 import { parseEventPath } from "@/lib/api/endpoints";
 import { activeEventsQuery } from "@/lib/api/queries";
 
@@ -104,6 +104,7 @@ export function SearchModal({ open, onClose }: { open: boolean; onClose: () => v
                     >
                       <img
                         src={resolveMediaUrl(event.cover_url)}
+                        onError={onEventImageError}
                         alt={event.name}
                         width={96}
                         height={96}

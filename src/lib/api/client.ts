@@ -7,6 +7,7 @@
  * set, the app falls back to local mock data (see ./mock.ts).
  */
 
+import type { SyntheticEvent } from "react";
 import { createIsomorphicFn } from "@tanstack/react-start";
 import { getRequestHeader, getRequestUrl } from "@tanstack/react-start/server";
 
@@ -14,15 +15,36 @@ const API_ORIGIN = import.meta.env["VITE_API_URL"] ?? "";
 export const API_ENABLED = API_ORIGIN.length > 0;
 
 /**
+ * Temporary — until the old DB's media gets migrated onto the new backend's
+ * storage. Plenty of migrated events have no `cover_url` at all, and some
+ * have one pointing at a file that was never carried over (still resolves
+ * to a URL, still 404s). Swap an `<img>`'s src to this in its `onError` as
+ * well as feeding it through `resolveMediaUrl` — the first covers a missing
+ * `cover_url`, the second a present-but-broken one.
+ */
+export const EVENT_PLACEHOLDER_IMAGE = "/event-placeholder.svg";
+
+/** `<img onError={onEventImageError}>` — covers the present-but-broken-URL
+ * half of the gap `resolveMediaUrl` alone can't (a `cover_url` that
+ * resolves to a real URL which then 404s). `onerror = null` first so a
+ * (theoretically impossible, but not worth risking) broken placeholder
+ * can't loop. */
+export function onEventImageError(e: SyntheticEvent<HTMLImageElement>): void {
+  e.currentTarget.onerror = null;
+  e.currentTarget.src = EVENT_PLACEHOLDER_IMAGE;
+}
+
+/**
  * `cover_url`/`gallery_urls` (Spatie Media Library's `getFirstMediaUrl()`)
  * come back as server-relative paths (`/storage/...`), not absolute URLs —
  * resolving them against the frontend's own origin (the browser's default
  * for a bare `/...` src) would 404 since the media actually lives on the
  * API origin. Already-absolute URLs (mock data, or if the backend changes
- * this later) pass through untouched.
+ * this later) pass through untouched. Null/missing falls back to
+ * EVENT_PLACEHOLDER_IMAGE rather than leaving `<img>` with no src.
  */
-export function resolveMediaUrl(path: string | null | undefined): string | undefined {
-  if (!path) return undefined;
+export function resolveMediaUrl(path: string | null | undefined): string {
+  if (!path) return EVENT_PLACEHOLDER_IMAGE;
   if (/^(https?:)?\/\//.test(path) || path.startsWith("data:")) return path;
   return `${API_ORIGIN}${path}`;
 }

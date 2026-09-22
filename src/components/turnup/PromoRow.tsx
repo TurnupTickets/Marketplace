@@ -1,6 +1,6 @@
 import { ChevronRight, Handshake, MoveLeft, MoveRight } from "lucide-react";
 import { Link } from "@tanstack/react-router";
-import { resolveMediaUrl } from "@/lib/api/client";
+import { onEventImageError, resolveMediaUrl } from "@/lib/api/client";
 import type { AccountTicketResource } from "@/lib/api/types";
 
 /** Only what the thumbnail strip needs — the caller derives this from the
@@ -42,6 +42,7 @@ export function PromoRow({
               <img
                 key={event.id}
                 src={resolveMediaUrl(event.cover_url)}
+                onError={onEventImageError}
                 alt={event.name}
                 width={1024}
                 height={1024}

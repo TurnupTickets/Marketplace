@@ -6,7 +6,7 @@ import { z } from "zod";
 import { PageShell } from "@/components/turnup/PageShell";
 import { activeEventsQuery } from "@/lib/api/queries";
 import { lookupTicket, verifyTicket } from "@/lib/api/endpoints";
-import { ApiError, resolveMediaUrl } from "@/lib/api/client";
+import { ApiError, onEventImageError, resolveMediaUrl } from "@/lib/api/client";
 import { formatEventDate } from "@/lib/format-event-date";
 import { TICKET_STATUS, type EventListResource, type OrderDetailResource } from "@/lib/api/types";
 
@@ -345,6 +345,7 @@ function EventDropdown({
               >
                 <img
                   src={resolveMediaUrl(event.cover_url)}
+                  onError={onEventImageError}
                   alt=""
                   width={64}
                   height={64}

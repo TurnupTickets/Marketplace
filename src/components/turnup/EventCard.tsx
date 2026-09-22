@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import { Link } from "@tanstack/react-router";
-import { resolveMediaUrl } from "@/lib/api/client";
+import { onEventImageError, resolveMediaUrl } from "@/lib/api/client";
 import { parseEventPath } from "@/lib/api/endpoints";
 import type { EventListResource } from "@/lib/api/types";
 
@@ -22,6 +22,7 @@ export function EventCard({
   const image = (
     <img
       src={resolveMediaUrl(event.cover_url)}
+      onError={onEventImageError}
       alt={`${event.name} — ${event.city}`}
       width={1080}
       height={1440}

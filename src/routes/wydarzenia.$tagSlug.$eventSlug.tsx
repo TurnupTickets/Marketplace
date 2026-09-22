@@ -13,7 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useQuote } from "@/hooks/use-quote";
-import { ApiError, resolveMediaUrl } from "@/lib/api/client";
+import { ApiError, onEventImageError, resolveMediaUrl } from "@/lib/api/client";
 import { eventDetailQuery, seatMapQuery } from "@/lib/api/queries";
 import { formatEventDateTime } from "@/lib/format-event-date";
 import { TICKET_GROUP_STATUS } from "@/lib/api/types";
@@ -232,6 +232,7 @@ function EventDetail() {
             <div className="mx-auto aspect-[3/4] w-full max-w-sm overflow-hidden rounded-3xl border border-border lg:mx-0 lg:max-w-none">
               <img
                 src={resolveMediaUrl(event.cover_url)}
+                onError={onEventImageError}
                 alt={`${event.name} — plakat wydarzenia`}
                 width={1080}
                 height={1440}
