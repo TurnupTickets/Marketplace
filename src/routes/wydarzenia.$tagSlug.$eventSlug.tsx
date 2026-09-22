@@ -242,9 +242,16 @@ function EventDetail() {
 
             <div className="space-y-4 rounded-3xl border border-border bg-card p-6 md:p-8">
               <h2 className="font-display text-xl font-bold uppercase">O wydarzeniu</h2>
-              <p className="text-sm leading-relaxed text-muted-foreground md:text-base">
-                {event.description}
-              </p>
+              {event.description && (
+                // WYSIWYG HTML from the CMS (same as strona.$slug.tsx's page
+                // body) — was rendered as a plain-text child before, so
+                // every tag showed up literally instead of formatting.
+                // Same-origin admin content, not user input.
+                <div
+                  className="min-w-0 space-y-4 break-words text-sm leading-relaxed text-muted-foreground md:text-base [&_a]:text-primary [&_a]:underline [&_h2]:mt-6 [&_h2]:font-display [&_h2]:text-lg [&_h2]:font-bold [&_h2]:uppercase [&_h2]:text-foreground [&_h2]:first:mt-0 [&_li]:ml-5 [&_ol]:list-decimal [&_p]:mb-4 [&_strong]:text-foreground [&_ul]:list-disc"
+                  dangerouslySetInnerHTML={{ __html: event.description }}
+                />
+              )}
 
               <dl className="grid gap-4 pt-2 sm:grid-cols-3">
                 <Info icon={<MapPin className="size-4" />} label="Miejsce" value={event.place} />
