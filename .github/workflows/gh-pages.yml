@@ -30,8 +30,11 @@ jobs:
 
       - name: Build static SPA bundle
         env:
+          # Turns on SPA/prerender mode (vite.config.ts) — required for a
+          # static GH Pages deploy at all, independent of GH_PAGES_BASE.
+          GH_PAGES_BUILD: "true"
           # No GH_PAGES_BASE: served from a custom domain's root
-          # (marketplace.turnup-tickets.pl via public/CNAME below), not the
+          # (marketplace.turnup-tickets.pl via public/CNAME), not the
           # github.io/<repo> subpath GH_PAGES_BASE exists for.
           #
           # Point the deployed preview at the real API. Override in repo variables
