@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/command";
 import { eventDetailQuery } from "@/lib/api/queries";
 import { createOrder, quoteCart } from "@/lib/api/endpoints";
-import { getFieldErrors } from "@/lib/api/client";
+import { getDomainErrorMessage, getFieldErrors } from "@/lib/api/client";
 import { dialCodes } from "@/lib/dial-codes";
 import type { CreateOrderRequest, SeatSelection, TicketSelection } from "@/lib/api/types";
 
@@ -127,9 +127,15 @@ function OrderForm() {
       if (serverFieldErrors) {
         setFieldErrors((prev) => ({ ...prev, ...serverFieldErrors }));
         setFormError(null);
-      } else {
-        setFormError("Nie udało się złożyć zamówienia. Spróbuj ponownie.");
+        return;
       }
+      // OrderException-shaped errors (409 PURCHASE_IN_PROGRESS/
+      // ORDER_ALREADY_PAID, 422 INSUFFICIENT_TICKETS/TICKETS_SOLD_OUT/...)
+      // carry a buyer-facing Polish message from the backend — show it
+      // instead of one generic string for every failure mode.
+      setFormError(
+        getDomainErrorMessage(err) ?? "Nie udało się złożyć zamówienia. Spróbuj ponownie.",
+      );
     },
   });
 

@@ -222,3 +222,41 @@ export function getFieldErrors(err: unknown): Record<string, string> | null {
   }
   return fieldErrors;
 }
+
+export type ApiDomainErrorPayload = { success: false; error: { code: string; message: string } };
+
+function isApiDomainError(payload: unknown): payload is ApiDomainErrorPayload {
+  return (
+    typeof payload === "object" &&
+    payload !== null &&
+    "error" in payload &&
+    typeof (payload as { error: unknown }).error === "object" &&
+    (payload as { error: { message?: unknown } }).error !== null &&
+    typeof (payload as { error: { message?: unknown } }).error.message === "string"
+  );
+}
+
+/**
+ * The backend's other JSON error shape — every `OrderException` subclass
+ * (`INSUFFICIENT_TICKETS`, `SEATS_OCCUPIED`, `ORDER_ALREADY_PAID`,
+ * `PURCHASE_IN_PROGRESS`, ...) and similar domain exceptions respond
+ * `{ success: false, error: { code, message } }` rather than Laravel's
+ * validation-error shape `getFieldErrors` parses. Any status code (409 and
+ * 422 both use it) — check `err.status` yourself first if you need to
+ * branch by code, e.g. `parseOccupiedSeatIds` does for `SEATS_OCCUPIED`.
+ * Returns null when the payload doesn't match, so callers can fall back to
+ * a generic message.
+ */
+export function getDomainErrorMessage(err: unknown): string | null {
+  if (!(err instanceof ApiError) || !isApiDomainError(err.payload)) return null;
+  return err.payload.error.message;
+}
+
+/**
+ * Machine-readable code from the same `{ error: { code } }` shape
+ * `getDomainErrorMessage` reads — null when the payload doesn't match.
+ */
+export function getDomainErrorCode(err: unknown): string | null {
+  if (!(err instanceof ApiError) || !isApiDomainError(err.payload)) return null;
+  return err.payload.error.code;
+}
