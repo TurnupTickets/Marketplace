@@ -30,6 +30,12 @@ export default defineConfig({
       ? {
           spa: {
             enabled: true,
+            // Prerendering "/" fetches it from the real backend at BUILD
+            // time (root route's loader calls GET /seo-settings, Phase 10)
+            // — spa mode renders that shell regardless of this nested
+            // `enabled` flag, so it can't be used to skip the backend
+            // dependency. The actual fix is the root loader tolerating a
+            // failed seo-settings fetch (see __root.tsx) instead of this.
             prerender: { enabled: true, outputPath: "index.html" },
           },
         }

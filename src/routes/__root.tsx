@@ -75,7 +75,14 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   loader: async ({ context }) => {
-    const seo = await context.queryClient.ensureQueryData(seoSettingsQuery());
+    // This loader runs for every route (root) — a hard failure here would
+    // break the whole app's SSR on any seo-settings hiccup, not just the
+    // homepage. Confirmed not hypothetical: a GH Pages prerender build hit
+    // this for real (500 from one network path, 403 — likely a WAF/bot
+    // rule — from GitHub Actions' runner IP on another). SEO meta/tracking
+    // scripts are enhancement, not core functionality, so degrade to the
+    // hardcoded fallbacks below rather than taking the page down.
+    const seo = await context.queryClient.ensureQueryData(seoSettingsQuery()).catch(() => null);
     return { seo };
   },
   head: ({ loaderData }) => ({
@@ -88,11 +95,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: loaderData?.seo.meta_title || "Turnup — bilety na wydarzenia" },
+      { title: loaderData?.seo?.meta_title || "Turnup — bilety na wydarzenia" },
       {
         name: "description",
         content:
-          loaderData?.seo.meta_description ||
+          loaderData?.seo?.meta_description ||
           "Marketplace biletów na koncerty, festiwale i imprezy.",
       },
       { property: "og:title", content: "Turnup — bilety na wydarzenia" },
@@ -102,13 +109,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      ...(loaderData?.seo.meta_keywords
+      ...(loaderData?.seo?.meta_keywords
         ? [{ name: "keywords", content: loaderData.seo.meta_keywords }]
         : []),
     ],
     // Same-origin CMS admin content, not user input — safe to inject as raw
     // markup (plan's explicit contract for this field).
-    scripts: loaderData?.seo.tracking_head_script
+    scripts: loaderData?.seo?.tracking_head_script
       ? [{ children: loaderData.seo.tracking_head_script }]
       : [],
     links: [
@@ -171,7 +178,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
-      {seo.tracking_body_script && (
+      {seo?.tracking_body_script && (
         // Same-origin CMS admin content, not user input (plan's explicit
         // contract) — placed at the end of <body> per the field's name,
         // separately from tracking_head_script above.
