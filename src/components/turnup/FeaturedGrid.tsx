@@ -1,4 +1,4 @@
-import type { EventItem } from "@/lib/api/types";
+import type { EventListResource } from "@/lib/api/types";
 import { EventCard } from "./EventCard";
 
 const TILE_RADIUS = "rounded-[10px]";
@@ -9,9 +9,9 @@ function FeaturedGroup({
   small2,
   priority = false,
 }: {
-  big?: EventItem | undefined;
-  small1?: EventItem | undefined;
-  small2?: EventItem | undefined;
+  big?: EventListResource | undefined;
+  small1?: EventListResource | undefined;
+  small2?: EventListResource | undefined;
   priority?: boolean;
 }) {
   if (!big) return null;
@@ -32,7 +32,7 @@ function FeaturedGroup({
   );
 }
 
-export function FeaturedGrid({ events }: { events: EventItem[] }) {
+export function FeaturedGrid({ events }: { events: EventListResource[] }) {
   const [a, b, c, d, e, f = c] = events;
 
   return (

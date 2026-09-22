@@ -1,219 +1,366 @@
-import { API_ENABLED, apiRequest, type LaravelCollection, type LaravelResource } from "./client";
 import {
-  mockAd,
-  mockAllEvents,
-  mockCalculateCart,
+  API_ENABLED,
+  apiRequest,
+  marketplaceRequest,
+  type LaravelCollection,
+  type LaravelResource,
+} from "./client";
+import { getCartToken } from "../cart-token";
+import {
+  mockAccountOrder,
+  mockAccountOrders,
+  mockAccountTickets,
   mockCreateOrder,
   mockEventDetail,
-  mockFeatured,
-  mockOrder,
-  mockSections,
+  mockHomepage,
+  mockLanguages,
+  mockListEvents,
+  mockMenu,
+  mockOrderStatus,
+  mockQuote,
+  mockRedirect,
+  mockSeatMap,
+  mockSeoSettings,
+  mockStaticPage,
   mockStaticPages,
-  mockUpcoming,
+  mockTicketLookup,
+  mockTicketVerify,
+  mockTranslations,
   mockUser,
 } from "./mock";
 import type {
-  AdBanner,
-  CartRequest,
-  CartTotal,
-  CreateOrderInput,
-  CreateOrderResult,
-  CurrentUser,
-  EventDetail,
-  EventItem,
-  EventSection,
-  Order,
+  ChangePasswordRequest,
+  ContentPageListResource,
+  ContentPageResource,
+  CreateOrderRequest,
+  EventListResource,
+  EventResource,
+  HomepageResource,
+  LanguageResource,
+  LoginRequest,
+  MenuItem,
+  MenuResource,
+  OrderCreatedResult,
+  OrderDetailResource,
+  OrderStatusResult,
+  OrderSummaryResource,
   Paginated,
-  StaticPage,
-  Ticket,
+  QuoteRequest,
+  QuoteResult,
+  RedirectResource,
+  RegisterRequest,
+  SeatMapResource,
+  SeoSettingResource,
+  TicketLookupRequest,
+  TicketLookupResult,
+  TicketVerifyRequest,
+  TranslationsResult,
+  UpdateProfileRequest,
+  UserResource,
+  AccountTicketResource,
 } from "./types";
 
 /**
- * Endpoints expected from the Laravel backend:
- *
- *   GET  /events/featured          -> EventItem[]
- *   GET  /events/sections          -> EventSection[]
- *   GET  /events?search=&category= -> EventItem[]
- *   GET  /ads/home                 -> AdBanner
- *   GET  /me                       -> CurrentUser
- *   GET  /me/upcoming              -> EventItem[]
- *   GET  /tickets/{code}           -> Ticket
+ * `canonical_url` (`"/{tagSlug}/{eventSlug}"`, or null when the event has no
+ * resolvable slug pair yet) is the one source of truth for an event's route —
+ * never construct this pair any other way.
  */
-
-export async function getFeaturedEvents(): Promise<EventItem[]> {
-  if (!API_ENABLED) return mockFeatured;
-  const res = await apiRequest<LaravelCollection<EventItem>>("/events/featured");
-  return res.data;
+export function parseEventPath(
+  canonicalUrl: string | null,
+): { tagSlug: string; eventSlug: string } | null {
+  if (!canonicalUrl) return null;
+  const segments = canonicalUrl.split("/").filter(Boolean);
+  if (segments.length !== 2) return null;
+  const [tagSlug, eventSlug] = segments as [string, string];
+  return { tagSlug, eventSlug };
 }
 
-export async function getEventSections(): Promise<EventSection[]> {
-  if (!API_ENABLED) return mockSections;
-  const res = await apiRequest<LaravelCollection<EventSection>>("/events/sections");
-  return res.data;
-}
+/**
+ * Resolves one `MenuItem` into something a nav component can render,
+ * shared by `TopBar` and `SiteFooter` so both interpret the same union the
+ * same way. `null` means "don't render a link" — either the item is marked
+ * non-clickable, or its reference didn't resolve (deleted tag/no URL; the
+ * tag's own `slug` can itself be `null` for a tag with no SEO name).
+ */
+export type ResolvedMenuLink =
+  | { kind: "internal"; to: "/wydarzenia"; search: { page: 1; q: string; tag: string } }
+  | { kind: "internal"; to: "/strona/$slug"; params: { slug: string } }
+  | { kind: "external"; href: string; target: string };
 
-export async function searchEvents(search: string): Promise<EventItem[]> {
-  if (!API_ENABLED) {
-    const all = mockSections.flatMap((s) => s.events);
-    return all.filter((e) => e.title.toLowerCase().includes(search.toLowerCase()));
+export function resolveMenuLink(item: MenuItem): ResolvedMenuLink | null {
+  if (!item.clickable || !item.link) return null;
+  if (item.link.type === "tag") {
+    const slug = item.link.tag.slug;
+    if (!slug) return null;
+    return { kind: "internal", to: "/wydarzenia", search: { page: 1, q: "", tag: slug } };
   }
-  const res = await apiRequest<LaravelCollection<EventItem>>("/events", { query: { search } });
+  if (item.link.type === "page") {
+    return { kind: "internal", to: "/strona/$slug", params: { slug: item.link.page.slug } };
+  }
+  if (!item.link.url) return null;
+  return { kind: "external", href: item.link.url, target: item.target || "_self" };
+}
+
+/* ---------------------------------------------------------------------------
+ * Homepage / browse
+ * ------------------------------------------------------------------------- */
+
+export async function getHomepage(): Promise<HomepageResource> {
+  if (!API_ENABLED) return mockHomepage;
+  const res = await apiRequest<LaravelResource<HomepageResource>>("/homepage");
   return res.data;
 }
 
-export async function getHomeAd(): Promise<AdBanner> {
-  if (!API_ENABLED) return mockAd;
-  const res = await apiRequest<LaravelResource<AdBanner>>("/ads/home");
+export async function listEvents(
+  page: number,
+  perPage = 12,
+  search = "",
+  tag = "",
+): Promise<Paginated<EventListResource>> {
+  if (!API_ENABLED) return mockListEvents(page, perPage, search, tag);
+  return apiRequest<Paginated<EventListResource>>("/events", {
+    query: { page, per_page: perPage, search: search || undefined, tag: tag || undefined },
+  });
+}
+
+export async function getActiveEvents(search: string): Promise<EventListResource[]> {
+  if (!API_ENABLED) return mockListEvents(1, 8, search).data;
+  const res = await apiRequest<LaravelCollection<EventListResource>>("/events", {
+    query: { search, upcoming: 1, per_page: 8 },
+  });
   return res.data;
 }
 
-export async function getCurrentUser(): Promise<CurrentUser | null> {
+export async function getEvent(tagSlug: string, eventSlug: string): Promise<EventResource> {
+  if (!API_ENABLED) return mockEventDetail(tagSlug, eventSlug);
+  const res = await apiRequest<LaravelResource<EventResource>>(
+    `/events/${encodeURIComponent(tagSlug)}/${encodeURIComponent(eventSlug)}`,
+  );
+  return res.data;
+}
+
+/* ---------------------------------------------------------------------------
+ * Quote / checkout
+ * ------------------------------------------------------------------------- */
+
+export async function quoteCart(eventId: number, input: QuoteRequest): Promise<QuoteResult> {
+  if (!API_ENABLED) return mockQuote(eventId, input);
+  // A seat's advisory hold has no requester identity without this header —
+  // re-quoting seats this cart already holds would otherwise 422
+  // (SEATS_OCCUPIED) against its own prior quote. Only needed when `seats`
+  // is actually part of the selection.
+  const hasSeats = Object.values(input.seats ?? {}).some((ids) => ids.length > 0);
+  const res = await apiRequest<{ success: boolean; data: QuoteResult }>(
+    `/events/${eventId}/quote`,
+    {
+      method: "POST",
+      body: input,
+      ...(hasSeats ? { headers: { "X-Cart-Token": getCartToken() } } : {}),
+    },
+  );
+  return res.data;
+}
+
+export async function createOrder(
+  eventId: number,
+  input: CreateOrderRequest,
+): Promise<OrderCreatedResult> {
+  if (!API_ENABLED) return mockCreateOrder(eventId, input);
+  return apiRequest<OrderCreatedResult>(`/events/${eventId}/orders`, {
+    method: "POST",
+    body: input,
+  });
+}
+
+/** Public order status lookup by `payment_code` — no auth, summary only, no tickets. */
+export async function getOrderStatus(paymentCode: string): Promise<OrderStatusResult> {
+  if (!API_ENABLED) return mockOrderStatus(paymentCode);
+  const res = await apiRequest<{ success: boolean; data: OrderStatusResult }>(
+    `/orders/${encodeURIComponent(paymentCode)}`,
+  );
+  return res.data;
+}
+
+/* ---------------------------------------------------------------------------
+ * Seat map (marketplace)
+ * ------------------------------------------------------------------------- */
+
+export async function getSeatMap(tagSlug: string, eventSlug: string): Promise<SeatMapResource> {
+  if (!API_ENABLED) return mockSeatMap(tagSlug, eventSlug);
+  const res = await marketplaceRequest<LaravelResource<SeatMapResource>>(
+    `/events/${encodeURIComponent(tagSlug)}/${encodeURIComponent(eventSlug)}/seat-map`,
+  );
+  return res.data;
+}
+
+/* ---------------------------------------------------------------------------
+ * Find ticket (marketplace, guest SMS-verified lookup)
+ * ------------------------------------------------------------------------- */
+
+export async function lookupTicket(input: TicketLookupRequest): Promise<TicketLookupResult> {
+  if (!API_ENABLED) return mockTicketLookup(input);
+  const res = await marketplaceRequest<{ success: boolean; data: TicketLookupResult }>(
+    "/tickets/lookup",
+    { method: "POST", body: input },
+  );
+  return res.data;
+}
+
+/** A wrong/expired/reused code surfaces as `422 { error: { code: "INVALID_VERIFICATION_CODE" } }`. */
+export async function verifyTicket(input: TicketVerifyRequest): Promise<OrderDetailResource> {
+  if (!API_ENABLED) return mockTicketVerify(input);
+  const res = await marketplaceRequest<LaravelResource<OrderDetailResource>>("/tickets/verify", {
+    method: "POST",
+    body: input,
+  });
+  return res.data;
+}
+
+/* ---------------------------------------------------------------------------
+ * Auth (cookie session — no bearer token)
+ * ------------------------------------------------------------------------- */
+
+export async function login(input: LoginRequest): Promise<UserResource> {
+  if (!API_ENABLED) return mockUser;
+  const res = await apiRequest<{ user: UserResource }>("/auth/login", {
+    method: "POST",
+    body: input,
+  });
+  return res.user;
+}
+
+export async function register(input: RegisterRequest): Promise<UserResource> {
+  if (!API_ENABLED) {
+    return { ...mockUser, email: input.email, first_name: input.first_name ?? mockUser.first_name };
+  }
+  const res = await apiRequest<{ user: UserResource }>("/auth/register", {
+    method: "POST",
+    body: input,
+  });
+  return res.user;
+}
+
+export async function logout(): Promise<void> {
+  if (!API_ENABLED) return;
+  await apiRequest<{ success: boolean }>("/auth/logout", { method: "POST" });
+}
+
+/** Returns `null` on 401 ("not logged in"), not an error surfaced to the user. */
+export async function getCurrentUser(): Promise<UserResource | null> {
   if (!API_ENABLED) return null;
   try {
-    const res = await apiRequest<LaravelResource<CurrentUser>>("/me");
+    const res = await apiRequest<LaravelResource<UserResource>>("/auth/me");
     return res.data;
   } catch {
     return null;
   }
 }
 
-export async function getMyUpcomingEvents(): Promise<EventItem[]> {
-  if (!API_ENABLED) return mockUpcoming;
-  const res = await apiRequest<LaravelCollection<EventItem>>("/me/upcoming");
+/* ---------------------------------------------------------------------------
+ * Account (auth required)
+ * ------------------------------------------------------------------------- */
+
+export async function getAccountOrders(): Promise<Paginated<OrderSummaryResource>> {
+  if (!API_ENABLED) return mockAccountOrders;
+  return apiRequest<Paginated<OrderSummaryResource>>("/account/orders", {
+    query: { per_page: 50 },
+  });
+}
+
+export async function getAccountOrder(code: string): Promise<OrderDetailResource> {
+  if (!API_ENABLED) return mockAccountOrder(code);
+  const res = await apiRequest<LaravelResource<OrderDetailResource>>(
+    `/account/orders/${encodeURIComponent(code)}`,
+  );
   return res.data;
 }
 
-export async function findTicket(code: string): Promise<Ticket> {
-  const res = await apiRequest<LaravelResource<Ticket>>(`/tickets/${encodeURIComponent(code)}`);
+export async function getAccountTickets(): Promise<Paginated<AccountTicketResource>> {
+  if (!API_ENABLED) return mockAccountTickets;
+  return apiRequest<Paginated<AccountTicketResource>>("/account/tickets", {
+    query: { per_page: 50 },
+  });
+}
+
+export async function updateProfile(input: UpdateProfileRequest): Promise<UserResource> {
+  if (!API_ENABLED) return { ...mockUser, ...input };
+  const res = await apiRequest<LaravelResource<UserResource>>("/account/profile", {
+    method: "PATCH",
+    body: input,
+  });
+  return res.data;
+}
+
+/**
+ * A wrong `current_password` is a 422, but NOT the standard Laravel
+ * `{ message, errors }` shape `getFieldErrors` parses — it's
+ * `{ success: false, error: { code: "INVALID_CURRENT_PASSWORD", message } }`.
+ * Phase 8's caller needs a separate `err.payload?.error?.code` check for
+ * this endpoint specifically, not `getFieldErrors`.
+ */
+export async function changePassword(input: ChangePasswordRequest): Promise<void> {
+  if (!API_ENABLED) return;
+  await apiRequest<{ success: boolean }>("/account/password", { method: "PUT", body: input });
+}
+
+/* ---------------------------------------------------------------------------
+ * Content pages
+ * ------------------------------------------------------------------------- */
+
+export async function getPages(): Promise<ContentPageListResource[]> {
+  if (!API_ENABLED) return mockStaticPages;
+  const res = await apiRequest<LaravelCollection<ContentPageListResource>>("/pages");
+  return res.data;
+}
+
+export async function getPage(slug: string): Promise<ContentPageResource> {
+  if (!API_ENABLED) return mockStaticPage(slug);
+  const res = await apiRequest<LaravelResource<ContentPageResource>>(
+    `/pages/${encodeURIComponent(slug)}`,
+  );
   return res.data;
 }
 
 /* ---------------------------------------------------------------------------
- * Additional endpoints expected from Laravel:
- *
- *   GET  /events?page=&per_page=&search=  -> Paginated<EventItem>
- *   GET  /events/{slug}                   -> EventDetail
- *   GET  /events/active?search=           -> EventItem[]   (search dropdown)
- *   GET  /pages/{slug}                    -> StaticPage
- *   POST /auth/login   { email, password }
- *   POST /auth/register{ email, password, name }
- *   POST /auth/forgot  { email } / POST /auth/reset { email, code, password }
- *   POST /orders/lookup { event_id, order_number } -> { phone_hint }
- *   POST /orders/verify { event_id, order_number, code } -> Order
- *   POST /cart/calculate { event_id, items, addon_ids, discount_code } -> CartTotal
- *   POST /orders { event_id, items, addon_ids, discount_code, buyer, shipping_address, consents } -> { order_number }
+ * Marketplace surface: nav menu, redirects, sitemap is proxied server-side (Phase 10)
  * ------------------------------------------------------------------------- */
 
-export async function listEvents(
-  page: number,
-  perPage = 12,
-  search = "",
-): Promise<Paginated<EventItem>> {
-  if (!API_ENABLED) {
-    const filtered = mockAllEvents.filter((e) =>
-      search ? `${e.title} ${e.city ?? ""}`.toLowerCase().includes(search.toLowerCase()) : true,
-    );
-    const start = (page - 1) * perPage;
-    return {
-      data: filtered.slice(start, start + perPage),
-      meta: {
-        current_page: page,
-        last_page: Math.max(1, Math.ceil(filtered.length / perPage)),
-        per_page: perPage,
-        total: filtered.length,
-      },
-    };
+export async function getMenu(code: "main" | "footer"): Promise<MenuResource> {
+  if (!API_ENABLED) return mockMenu(code);
+  const res = await marketplaceRequest<LaravelResource<MenuResource>>(`/menu/${code}`);
+  return res.data;
+}
+
+/** Returns `null` on 404 (no redirect on file) — callers fall through to their own 404. */
+export async function lookupRedirect(path: string): Promise<RedirectResource | null> {
+  if (!API_ENABLED) return mockRedirect(path);
+  try {
+    const res = await marketplaceRequest<LaravelResource<RedirectResource>>("/redirects/lookup", {
+      query: { path },
+    });
+    return res.data;
+  } catch {
+    return null;
   }
-  return apiRequest<Paginated<EventItem>>("/events", {
-    query: { page, per_page: perPage, search: search || undefined },
-  });
 }
 
-export async function getEvent(slug: string): Promise<EventDetail> {
-  if (!API_ENABLED) return mockEventDetail(slug);
-  const res = await apiRequest<LaravelResource<EventDetail>>(`/events/${encodeURIComponent(slug)}`);
+/* ---------------------------------------------------------------------------
+ * Languages / translations / SEO settings
+ * ------------------------------------------------------------------------- */
+
+export async function getLanguages(): Promise<LanguageResource[]> {
+  if (!API_ENABLED) return mockLanguages;
+  const res = await apiRequest<LaravelCollection<LanguageResource>>("/languages");
   return res.data;
 }
 
-export async function calculateCart(input: CartRequest): Promise<CartTotal> {
-  if (!API_ENABLED) return mockCalculateCart(input);
-  return apiRequest<CartTotal>("/cart/calculate", { method: "POST", body: input });
+export async function getTranslations(): Promise<TranslationsResult> {
+  if (!API_ENABLED) return mockTranslations;
+  return apiRequest<TranslationsResult>("/translations");
 }
 
-export async function createOrder(input: CreateOrderInput): Promise<CreateOrderResult> {
-  if (!API_ENABLED) return mockCreateOrder(input);
-  return apiRequest<CreateOrderResult>("/orders", { method: "POST", body: input });
-}
-
-export async function getActiveEvents(search: string): Promise<EventItem[]> {
-  if (!API_ENABLED) {
-    const q = search.trim().toLowerCase();
-    return mockAllEvents
-      .filter((e) => (q ? `${e.title} ${e.city ?? ""}`.toLowerCase().includes(q) : true))
-      .slice(0, 8);
-  }
-  const res = await apiRequest<LaravelCollection<EventItem>>("/events/active", {
-    query: { search },
-  });
+export async function getSeoSettings(): Promise<SeoSettingResource> {
+  if (!API_ENABLED) return mockSeoSettings;
+  const res = await apiRequest<LaravelResource<SeoSettingResource>>("/seo-settings");
   return res.data;
-}
-
-export async function getStaticPage(slug: string): Promise<StaticPage> {
-  if (!API_ENABLED) {
-    const page = mockStaticPages.find((p) => p.slug === slug);
-    if (!page) throw new Error("Page not found");
-    return page;
-  }
-  const res = await apiRequest<LaravelResource<StaticPage>>(`/pages/${encodeURIComponent(slug)}`);
-  return res.data;
-}
-
-export async function requestTicketCode(input: { event_id: number; order_number: string }) {
-  if (!API_ENABLED) return { phone_hint: mockOrder.phone_hint };
-  return apiRequest<{ phone_hint: string }>("/orders/lookup", { method: "POST", body: input });
-}
-
-export async function verifyTicketCode(input: {
-  event_id: number;
-  order_number: string;
-  code: string;
-}): Promise<Order> {
-  if (!API_ENABLED) return mockOrder;
-  const res = await apiRequest<LaravelResource<Order>>("/orders/verify", {
-    method: "POST",
-    body: input,
-  });
-  return res.data;
-}
-
-export async function login(input: { email: string; password: string }): Promise<CurrentUser> {
-  if (!API_ENABLED) return mockUser;
-  const res = await apiRequest<LaravelResource<CurrentUser>>("/auth/login", {
-    method: "POST",
-    body: input,
-  });
-  return res.data;
-}
-
-export async function register(input: {
-  name: string;
-  email: string;
-  password: string;
-}): Promise<CurrentUser> {
-  if (!API_ENABLED) return { ...mockUser, name: input.name, email: input.email };
-  const res = await apiRequest<LaravelResource<CurrentUser>>("/auth/register", {
-    method: "POST",
-    body: input,
-  });
-  return res.data;
-}
-
-export async function requestPasswordReset(email: string) {
-  if (!API_ENABLED) return { ok: true };
-  return apiRequest<{ ok: boolean }>("/auth/forgot", { method: "POST", body: { email } });
-}
-
-export async function resetPassword(input: { email: string; code: string; password: string }) {
-  if (!API_ENABLED) return { ok: true };
-  return apiRequest<{ ok: boolean }>("/auth/reset", { method: "POST", body: input });
 }

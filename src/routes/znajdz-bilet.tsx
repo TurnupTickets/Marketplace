@@ -5,8 +5,10 @@ import { Check, Loader2, Search, Ticket as TicketIcon } from "lucide-react";
 import { z } from "zod";
 import { PageShell } from "@/components/turnup/PageShell";
 import { activeEventsQuery } from "@/lib/api/queries";
-import { requestTicketCode, verifyTicketCode } from "@/lib/api/endpoints";
-import type { EventItem, Order } from "@/lib/api/types";
+import { lookupTicket, verifyTicket } from "@/lib/api/endpoints";
+import { ApiError, resolveMediaUrl } from "@/lib/api/client";
+import { formatEventDate } from "@/lib/format-event-date";
+import { TICKET_STATUS, type EventListResource, type OrderDetailResource } from "@/lib/api/types";
 
 export const Route = createFileRoute("/znajdz-bilet")({
   head: () => ({
@@ -27,6 +29,15 @@ export const Route = createFileRoute("/znajdz-bilet")({
   component: FindTicketPage,
 });
 
+/** `App\Enums\Statuses\TicketStatus`: int-backed enum, serializes as its integer value, not a string. */
+const TICKET_STATUS_LABEL: Record<number, string> = {
+  [TICKET_STATUS.CANCELLED]: "Anulowany",
+  [TICKET_STATUS.ACTIVE]: "Ważny",
+  [TICKET_STATUS.DRAFT]: "Wersja robocza",
+  [TICKET_STATUS.RESERVED]: "Zarezerwowany",
+  [TICKET_STATUS.USED]: "Wykorzystany",
+};
+
 function StepsBar({ current, labels }: { current: number; labels: string[] }) {
   return (
     <ol className="flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
@@ -35,10 +46,10 @@ function StepsBar({ current, labels }: { current: number; labels: string[] }) {
         return (
           <li key={label} className="flex min-w-0 items-center gap-2 md:flex-1">
             <span
-              className={`flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+              className={`flex size-7 shrink-0 items-center justify-center rounded-full border text-xs font-bold ${
                 active
-                  ? "gradient-brand text-primary-foreground"
-                  : "bg-secondary text-muted-foreground"
+                  ? "gradient-brand border-transparent text-primary-foreground"
+                  : "border-border bg-card text-foreground"
               }`}
             >
               {i + 1}
@@ -57,34 +68,47 @@ function StepsBar({ current, labels }: { current: number; labels: string[] }) {
   );
 }
 
+/** `order_number` is `payments.id` (an autoincrement int), not the opaque `payment_code`. */
+const orderNumberSchema = z
+  .string()
+  .trim()
+  .min(1, { message: "Podaj numer zamówienia" })
+  .regex(/^\d+$/, { message: "Numer zamówienia to sama liczba" })
+  .max(20)
+  .transform((v) => Number(v));
+
 function FindTicketPage() {
   const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [event, setEvent] = useState<EventItem | null>(null);
-  const [orderNumber, setOrderNumber] = useState("");
+  const [event, setEvent] = useState<EventListResource | null>(null);
+  const [orderNumberInput, setOrderNumberInput] = useState("");
+  const [orderNumber, setOrderNumber] = useState<number | null>(null);
   const [code, setCode] = useState("");
   const [phoneHint, setPhoneHint] = useState<string | null>(null);
-  const [order, setOrder] = useState<Order | null>(null);
+  const [order, setOrder] = useState<OrderDetailResource | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function submitLookup(e: React.FormEvent) {
     e.preventDefault();
     if (!event) return setError("Wybierz wydarzenie z listy");
-    const parsed = z
-      .string()
-      .trim()
-      .min(4, { message: "Podaj numer zamówienia" })
-      .max(40)
-      .safeParse(orderNumber);
+    const parsed = orderNumberSchema.safeParse(orderNumberInput);
     if (!parsed.success) return setError(parsed.error.issues[0]?.message ?? "Błąd danych");
     setError(null);
     setLoading(true);
     try {
-      const res = await requestTicketCode({ event_id: event.id, order_number: parsed.data });
+      const res = await lookupTicket({ event_id: event.id, order_number: parsed.data });
+      setOrderNumber(parsed.data);
       setPhoneHint(res.phone_hint ?? null);
       setStep(2);
-    } catch {
-      setError("Nie znaleźliśmy zamówienia dla tego wydarzenia.");
+    } catch (err) {
+      // The lookup endpoint always 200s (never reveals whether the order
+      // exists — see the guide) except for the 429 rate-limit, which needs
+      // its own copy so the user doesn't just retry into the same wall.
+      if (err instanceof ApiError && err.status === 429) {
+        setError("Zbyt wiele prób. Spróbuj ponownie za kilka minut.");
+      } else {
+        setError("Nie znaleźliśmy zamówienia dla tego wydarzenia.");
+      }
     } finally {
       setLoading(false);
     }
@@ -92,21 +116,25 @@ function FindTicketPage() {
 
   async function submitCode(e: React.FormEvent) {
     e.preventDefault();
-    if (!event) return;
+    if (!event || orderNumber === null) return;
     const parsed = z.string().trim().min(4, { message: "Podaj kod z SMS" }).max(10).safeParse(code);
     if (!parsed.success) return setError(parsed.error.issues[0]?.message ?? "Błąd danych");
     setError(null);
     setLoading(true);
     try {
-      const res = await verifyTicketCode({
+      const res = await verifyTicket({
         event_id: event.id,
-        order_number: orderNumber.trim(),
+        order_number: orderNumber,
         code: parsed.data,
       });
       setOrder(res);
       setStep(3);
-    } catch {
-      setError("Kod jest nieprawidłowy lub wygasł.");
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 429) {
+        setError("Zbyt wiele prób. Spróbuj ponownie za kilka minut.");
+      } else {
+        setError("Kod jest nieprawidłowy lub wygasł.");
+      }
     } finally {
       setLoading(false);
     }
@@ -133,9 +161,10 @@ function FindTicketPage() {
                 Numer zamówienia
               </span>
               <input
-                value={orderNumber}
-                onChange={(e) => setOrderNumber(e.target.value)}
-                placeholder="np. TU-2026-004512"
+                value={orderNumberInput}
+                onChange={(e) => setOrderNumberInput(e.target.value)}
+                inputMode="numeric"
+                placeholder="np. 4512"
                 className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-primary"
               />
             </label>
@@ -199,7 +228,7 @@ function FindTicketPage() {
               </div>
               <div>
                 <p className="font-display text-lg font-bold uppercase">
-                  Zamówienie {order.number}
+                  Zamówienie {order.payment_code ?? `#${order.id}`}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {order.tickets.length} biletów przypisanych do zamówienia
@@ -211,33 +240,29 @@ function FindTicketPage() {
               {order.tickets.map((ticket) => (
                 <li key={ticket.id} className="flex items-center gap-4 py-4">
                   <img
-                    src={ticket.event.cover_url}
-                    alt={ticket.event.title}
-                    width={96}
-                    height={96}
+                    src={`data:image/png;base64,${ticket.qr_code}`}
+                    alt="Kod QR biletu"
+                    width={48}
+                    height={48}
                     loading="lazy"
-                    className="size-14 rounded-xl object-cover"
+                    className="size-12 shrink-0 rounded-xl object-cover"
                   />
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-display text-sm font-bold uppercase">
-                      {ticket.event.title}
+                      {ticket.event.name}
                     </p>
                     <p className="truncate text-xs text-muted-foreground">
-                      {ticket.group_name} · {ticket.holder} · {ticket.code}
+                      {ticket.ticket_group.name} · {ticket.price} {order.currency ?? ""}
                     </p>
                   </div>
                   <span
                     className={`shrink-0 rounded-full px-3 py-1 text-[0.6rem] font-bold uppercase ${
-                      ticket.status === "valid"
+                      ticket.status === TICKET_STATUS.ACTIVE
                         ? "bg-primary/15 text-primary"
                         : "bg-secondary text-muted-foreground"
                     }`}
                   >
-                    {ticket.status === "valid"
-                      ? "Ważny"
-                      : ticket.status === "used"
-                        ? "Wykorzystany"
-                        : "Zwrot"}
+                    {TICKET_STATUS_LABEL[ticket.status] ?? "—"}
                   </span>
                 </li>
               ))}
@@ -260,8 +285,8 @@ function EventDropdown({
   value,
   onChange,
 }: {
-  value: EventItem | null;
-  onChange: (event: EventItem) => void;
+  value: EventListResource | null;
+  onChange: (event: EventListResource) => void;
 }) {
   const [term, setTerm] = useState("");
   const [debounced, setDebounced] = useState("");
@@ -279,28 +304,36 @@ function EventDropdown({
       <span className="text-[0.65rem] font-bold uppercase tracking-widest text-muted-foreground">
         Wydarzenie
       </span>
-      <div className="flex items-center gap-2 rounded-2xl border border-border bg-background px-4 py-3 focus-within:border-primary">
-        <Search className="size-4 text-muted-foreground" />
+      <div className="flex items-center gap-2 rounded-2xl border border-border bg-background px-4 py-3 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/30">
+        <Search className="size-4 shrink-0 text-muted-foreground" />
         <input
-          value={value && !open ? `${value.title} — ${value.city}` : term}
+          role="combobox"
+          aria-expanded={open}
+          aria-autocomplete="list"
+          aria-controls="find-ticket-event-options"
+          value={value && !open ? `${value.name} — ${value.city}` : term}
           onFocus={() => setOpen(true)}
           onChange={(e) => {
             setTerm(e.target.value);
             setOpen(true);
           }}
           placeholder="Szukaj aktywnego wydarzenia…"
-          className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+          className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
         />
-        {isFetching && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
+        {isFetching && <Loader2 className="size-4 shrink-0 animate-spin text-muted-foreground" />}
       </div>
 
       {open && (
-        <ul className="absolute z-30 mt-1 max-h-64 w-full overflow-y-auto rounded-2xl border border-border bg-card p-1 shadow-xl">
+        <ul
+          id="find-ticket-event-options"
+          role="listbox"
+          className="absolute z-30 mt-1 max-h-64 w-full overflow-y-auto rounded-2xl border border-border bg-card p-1 shadow-xl"
+        >
           {(data ?? []).length === 0 && (
             <li className="px-4 py-3 text-sm text-muted-foreground">Brak aktywnych wydarzeń.</li>
           )}
           {(data ?? []).map((event) => (
-            <li key={event.id}>
+            <li key={event.id} role="option" aria-selected={value?.id === event.id}>
               <button
                 type="button"
                 onClick={() => {
@@ -308,20 +341,22 @@ function EventDropdown({
                   setTerm("");
                   setOpen(false);
                 }}
-                className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition-colors hover:bg-secondary"
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-foreground transition-colors hover:bg-secondary"
               >
                 <img
-                  src={event.cover_url}
+                  src={resolveMediaUrl(event.cover_url)}
                   alt=""
                   width={64}
                   height={64}
                   loading="lazy"
-                  className="size-10 rounded-lg object-cover"
+                  className="size-10 shrink-0 rounded-lg border border-border object-cover"
                 />
                 <span className="min-w-0">
-                  <span className="block truncate text-sm font-semibold">{event.title}</span>
+                  <span className="block truncate text-sm font-semibold text-foreground">
+                    {event.name}
+                  </span>
                   <span className="block truncate text-xs text-muted-foreground">
-                    {event.city} · {event.starts_at}
+                    {event.city} · {formatEventDate(event.date_from)}
                   </span>
                 </span>
               </button>

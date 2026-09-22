@@ -11,6 +11,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { seoSettingsQuery } from "../lib/api/queries";
 
 function NotFoundComponent() {
   return (
@@ -73,12 +74,27 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 }
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
-  head: () => ({
+  loader: async ({ context }) => {
+    const seo = await context.queryClient.ensureQueryData(seoSettingsQuery());
+    return { seo };
+  },
+  head: ({ loaderData }) => ({
+    // Every route sets its own title/description via its own head() — these
+    // are root-level fallbacks, not overrides. TanStack Router's head
+    // merging dedupes by tag key (title is singular; meta by name/property)
+    // keeping the most specific (leaf) route's value, so a route that sets
+    // its own title/description simply wins over these without any
+    // conditional logic here.
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Turnup — bilety na wydarzenia" },
-      { name: "description", content: "Marketplace biletów na koncerty, festiwale i imprezy." },
+      { title: loaderData?.seo.meta_title || "Turnup — bilety na wydarzenia" },
+      {
+        name: "description",
+        content:
+          loaderData?.seo.meta_description ||
+          "Marketplace biletów na koncerty, festiwale i imprezy.",
+      },
       { property: "og:title", content: "Turnup — bilety na wydarzenia" },
       {
         property: "og:description",
@@ -86,7 +102,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      ...(loaderData?.seo.meta_keywords
+        ? [{ name: "keywords", content: loaderData.seo.meta_keywords }]
+        : []),
     ],
+    // Same-origin CMS admin content, not user input — safe to inject as raw
+    // markup (plan's explicit contract for this field).
+    scripts: loaderData?.seo.tracking_head_script
+      ? [{ children: loaderData.seo.tracking_head_script }]
+      : [],
     links: [
       {
         rel: "stylesheet",
@@ -141,11 +165,18 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const { seo } = Route.useLoaderData();
 
   return (
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
+      {seo.tracking_body_script && (
+        // Same-origin CMS admin content, not user input (plan's explicit
+        // contract) — placed at the end of <body> per the field's name,
+        // separately from tracking_head_script above.
+        <script dangerouslySetInnerHTML={{ __html: seo.tracking_body_script }} />
+      )}
     </QueryClientProvider>
   );
 }

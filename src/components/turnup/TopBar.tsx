@@ -1,11 +1,47 @@
 import { useState } from "react";
-import { Globe, LogIn, Search, Ticket } from "lucide-react";
+import { LogIn, Search, Ticket, User } from "lucide-react";
 import { Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { currentUserQuery, menuQuery } from "@/lib/api/queries";
+import { resolveMenuLink } from "@/lib/api/endpoints";
+import type { MenuItem } from "@/lib/api/types";
+import { LanguageSwitcher } from "./LanguageSwitcher";
 import { Logo } from "./Logo";
 import { SearchModal } from "./SearchModal";
 
+function MainNavLink({ item }: { item: MenuItem }) {
+  const resolved = resolveMenuLink(item);
+  if (!resolved) return <span className="text-white/60">{item.title}</span>;
+  if (resolved.kind === "internal") {
+    const linkClassName = "transition-colors hover:text-primary";
+    return resolved.to === "/wydarzenia" ? (
+      <Link to={resolved.to} search={resolved.search} className={linkClassName}>
+        {item.title}
+      </Link>
+    ) : (
+      <Link to={resolved.to} params={resolved.params} className={linkClassName}>
+        {item.title}
+      </Link>
+    );
+  }
+  return (
+    <a
+      href={resolved.href}
+      target={resolved.target}
+      rel={resolved.target === "_blank" ? "noopener noreferrer" : undefined}
+      className="transition-colors hover:text-primary"
+    >
+      {item.title}
+    </a>
+  );
+}
+
 export function TopBar() {
   const [searchOpen, setSearchOpen] = useState(false);
+  // Loading and logged-out both render the same "log in" affordance — only a
+  // confirmed session swaps it for the profile link, on mobile and desktop alike.
+  const { data: user } = useQuery(currentUserQuery());
+  const { data: mainMenu } = useQuery(menuQuery("main"));
 
   return (
     <header
@@ -29,10 +65,7 @@ export function TopBar() {
       </svg>
 
       <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-2 px-3 py-3 md:gap-4 md:px-6">
-        <div className="flex shrink-0 items-center gap-1.5 md:hidden">
-          <Globe className="size-5" strokeWidth={1.5} />
-          <span className="text-sm font-semibold">PL</span>
-        </div>
+        <LanguageSwitcher variant="mobile" />
 
         <Link to="/" className="hidden md:block">
           <Logo />
@@ -45,30 +78,41 @@ export function TopBar() {
         <SearchCluster className="hidden md:flex" onSearch={() => setSearchOpen(true)} />
 
         <div className="flex shrink-0 items-center gap-2 md:gap-4">
-          <div className="hidden items-center gap-2 md:flex">
-            <Globe className="size-6 text-foreground" strokeWidth={1.5} />
-            <span className="text-sm font-semibold">PL</span>
-          </div>
-          <Link
-            to="/profil"
-            aria-label="Profil"
-            className="hidden rounded-full p-1 hover:opacity-70 md:block"
-          >
-            <span className="text-xs font-semibold uppercase tracking-wide">Profil</span>
-          </Link>
-          <Link
-            to="/logowanie"
-            aria-label="Zaloguj się"
-            className="rounded-full p-1 transition-opacity hover:opacity-70"
-          >
-            <LogIn className="size-5 md:size-6" strokeWidth={1.5} />
-          </Link>
+          <LanguageSwitcher variant="desktop" />
+          {user ? (
+            <Link
+              to="/profil"
+              aria-label="Profil"
+              className="flex items-center rounded-full p-1 transition-opacity hover:opacity-70"
+            >
+              <User className="size-5 md:size-6" strokeWidth={1.5} />
+              <span className="hidden text-xs font-semibold uppercase tracking-wide md:ml-1.5 md:inline">
+                Profil
+              </span>
+            </Link>
+          ) : (
+            <Link
+              to="/logowanie"
+              aria-label="Zaloguj się"
+              className="rounded-full p-1 transition-opacity hover:opacity-70"
+            >
+              <LogIn className="size-5 md:size-6" strokeWidth={1.5} />
+            </Link>
+          )}
         </div>
       </div>
 
       <div className="px-3 pb-4 md:hidden">
         <SearchCluster className="flex" onSearch={() => setSearchOpen(true)} />
       </div>
+
+      {mainMenu && mainMenu.items.length > 0 && (
+        <nav className="hidden max-w-[1600px] flex-wrap justify-center gap-x-6 gap-y-2 px-6 pb-3 text-xs font-semibold uppercase tracking-wide text-white/85 md:mx-auto md:flex">
+          {mainMenu.items.map((item) => (
+            <MainNavLink key={item.id} item={item} />
+          ))}
+        </nav>
+      )}
 
       <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
     </header>

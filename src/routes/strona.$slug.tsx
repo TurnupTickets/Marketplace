@@ -45,7 +45,7 @@ function StaticPageView() {
 
         <div
           className="min-w-0 space-y-4 break-words text-sm leading-relaxed text-muted-foreground md:text-base [&_a]:text-primary [&_a]:underline [&_h2]:mt-6 [&_h2]:font-display [&_h2]:text-xl [&_h2]:font-bold [&_h2]:uppercase [&_h2]:text-foreground [&_h2]:first:mt-0 [&_li]:ml-5 [&_ol]:list-decimal [&_p]:mb-4 [&_strong]:text-foreground [&_ul]:list-disc"
-          dangerouslySetInnerHTML={{ __html: page.content_html }}
+          dangerouslySetInnerHTML={{ __html: page.body ?? "" }}
         />
 
         <Link
