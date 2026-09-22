@@ -34,10 +34,11 @@ export function EventCard({
   const overlay = (
     <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent p-4 pt-12">
       <div className="translate-y-3 opacity-0 transition-all duration-300 ease-out group-hover:translate-y-0 group-hover:opacity-100">
-        <p className="truncate font-display text-sm font-bold uppercase text-white">{event.city}</p>
-        {event.primary_tag && (
-          <p className="truncate text-xs text-white/70">{event.primary_tag.name}</p>
-        )}
+        <p className="truncate font-display text-sm font-bold uppercase text-white">{event.name}</p>
+        <p className="truncate text-xs text-white/70">
+          {event.city}
+          {event.primary_tag ? ` · ${event.primary_tag.name}` : ""}
+        </p>
       </div>
     </div>
   );
