@@ -220,6 +220,15 @@ export type UpdateProfileRequest = Partial<
 
 export type ChangePasswordRequest = { current_password: string; password: string };
 
+/**
+ * `POST /marketplace/v1/password/reset` — admin-triggered reset link only
+ * (Users list → "Wyślij reset hasła" in the CMS admin; no self-service
+ * "forgot password" entry point exists). 422 on any failure — wrong/expired
+ * token, unknown email — with `{ error: { code: "invalid_or_expired_token" } }`,
+ * deliberately identical for every cause.
+ */
+export type PasswordResetRequest = { email: string; token: string; password: string };
+
 /** `App\Enums\Statuses\TicketStatus`: int-backed enum, serializes as its integer value, not a string. */
 export type TicketStatus = 0 | 1 | 2 | 10 | 99;
 export const TICKET_STATUS = { CANCELLED: 0, ACTIVE: 1, DRAFT: 2, RESERVED: 10, USED: 99 } as const;

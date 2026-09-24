@@ -45,6 +45,7 @@ import type {
   OrderStatusResult,
   OrderSummaryResource,
   Paginated,
+  PasswordResetRequest,
   QuoteRequest,
   QuoteResult,
   RedirectResource,
@@ -301,6 +302,21 @@ export async function updateProfile(input: UpdateProfileRequest): Promise<UserRe
 export async function changePassword(input: ChangePasswordRequest): Promise<void> {
   if (!API_ENABLED) return;
   await apiRequest<{ success: boolean }>("/account/password", { method: "PUT", body: input });
+}
+
+/**
+ * Admin-triggered reset link only (marketplace surface, not api/v1 —
+ * unauthenticated, no session). 422 on any failure cause — wrong/expired
+ * token, unknown email — always `{ error: { code: "invalid_or_expired_token" } }`,
+ * deliberately generic. Caller shows one fixed message, doesn't try to
+ * distinguish causes.
+ */
+export async function resetPassword(input: PasswordResetRequest): Promise<void> {
+  if (!API_ENABLED) return;
+  await marketplaceRequest<{ success: boolean }>("/password/reset", {
+    method: "POST",
+    body: input,
+  });
 }
 
 /* ---------------------------------------------------------------------------

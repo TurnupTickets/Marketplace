@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as SplatRouteImport } from './routes/$'
 import { Route as LogowanieRouteImport } from './routes/logowanie'
 import { Route as ProfilRouteImport } from './routes/profil'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ZnajdzBiletRouteImport } from './routes/znajdz-bilet'
 import { Route as StronaSlugRouteImport } from './routes/strona.$slug'
 import { Route as WydarzeniaIndexRouteImport } from './routes/wydarzenia.index'
@@ -38,6 +39,11 @@ const LogowanieRoute = LogowanieRouteImport.update({
 const ProfilRoute = ProfilRouteImport.update({
   id: '/profil',
   path: '/profil',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ZnajdzBiletRoute = ZnajdzBiletRouteImport.update({
@@ -79,6 +85,7 @@ export interface FileRoutesByFullPath {
   '/$': typeof SplatRoute
   '/logowanie': typeof LogowanieRoute
   '/profil': typeof ProfilRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/znajdz-bilet': typeof ZnajdzBiletRoute
   '/strona/$slug': typeof StronaSlugRoute
   '/wydarzenia/': typeof WydarzeniaIndexRoute
@@ -91,6 +98,7 @@ export interface FileRoutesByTo {
   '/$': typeof SplatRoute
   '/logowanie': typeof LogowanieRoute
   '/profil': typeof ProfilRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/znajdz-bilet': typeof ZnajdzBiletRoute
   '/strona/$slug': typeof StronaSlugRoute
   '/wydarzenia': typeof WydarzeniaIndexRoute
@@ -104,6 +112,7 @@ export interface FileRoutesById {
   '/$': typeof SplatRoute
   '/logowanie': typeof LogowanieRoute
   '/profil': typeof ProfilRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/znajdz-bilet': typeof ZnajdzBiletRoute
   '/strona/$slug': typeof StronaSlugRoute
   '/wydarzenia/': typeof WydarzeniaIndexRoute
@@ -118,6 +127,7 @@ export interface FileRouteTypes {
     | '/$'
     | '/logowanie'
     | '/profil'
+    | '/reset-password'
     | '/znajdz-bilet'
     | '/strona/$slug'
     | '/wydarzenia/'
@@ -130,6 +140,7 @@ export interface FileRouteTypes {
     | '/$'
     | '/logowanie'
     | '/profil'
+    | '/reset-password'
     | '/znajdz-bilet'
     | '/strona/$slug'
     | '/wydarzenia'
@@ -142,6 +153,7 @@ export interface FileRouteTypes {
     | '/$'
     | '/logowanie'
     | '/profil'
+    | '/reset-password'
     | '/znajdz-bilet'
     | '/strona/$slug'
     | '/wydarzenia/'
@@ -155,6 +167,7 @@ export interface RootRouteChildren {
   SplatRoute: typeof SplatRoute
   LogowanieRoute: typeof LogowanieRoute
   ProfilRoute: typeof ProfilRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   ZnajdzBiletRoute: typeof ZnajdzBiletRoute
   StronaSlugRoute: typeof StronaSlugRoute
   WydarzeniaIndexRoute: typeof WydarzeniaIndexRoute
@@ -191,6 +204,13 @@ declare module '@tanstack/react-router' {
       path: '/profil'
       fullPath: '/profil'
       preLoaderRoute: typeof ProfilRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/znajdz-bilet': {
@@ -243,6 +263,7 @@ const rootRouteChildren: RootRouteChildren = {
   SplatRoute: SplatRoute,
   LogowanieRoute: LogowanieRoute,
   ProfilRoute: ProfilRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   ZnajdzBiletRoute: ZnajdzBiletRoute,
   StronaSlugRoute: StronaSlugRoute,
   WydarzeniaIndexRoute: WydarzeniaIndexRoute,
