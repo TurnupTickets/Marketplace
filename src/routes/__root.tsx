@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
-  Link,
   createRootRouteWithContext,
+  redirect,
   useRouter,
   HeadContent,
   Scripts,
@@ -11,7 +11,28 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { seoSettingsQuery } from "../lib/api/queries";
+import { languagesQuery, seoSettingsQuery } from "../lib/api/queries";
+import { splitLocalePrefix } from "../lib/locale";
+import { getRealUrl } from "../lib/locale-runtime";
+import { createIsomorphicFn } from "@tanstack/react-start";
+import { setResponseHeader } from "@tanstack/react-start/server";
+import { NOT_FOUND_MARKER_HEADER } from "../lib/not-found-marker";
+
+/**
+ * HTTP 404 for the SSR response; no-op in the browser. The router computes
+ * the SSR status from its own matches (200 here, since the 404 page is
+ * rendered by RootComponent, not a notFound match) and overrides
+ * setResponseStatus — so mark the response and let src/server.ts set 404.
+ */
+const markNotFoundResponse = createIsomorphicFn()
+  .server(() => {
+    try {
+      setResponseHeader(NOT_FOUND_MARKER_HEADER, "1");
+    } catch {
+      /* outside a request (prerender) — nothing to set */
+    }
+  })
+  .client(() => {});
 
 function NotFoundComponent() {
   return (
@@ -23,12 +44,14 @@ function NotFoundComponent() {
           The page you're looking for doesn't exist or has been moved.
         </p>
         <div className="mt-6">
-          <Link
-            to="/"
+          {/* Plain <a>, not a router Link: on an unknown-language 404
+              (`/de_de/...`) the router would re-add that prefix to "/". */}
+          <a
+            href={import.meta.env.BASE_URL}
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
             Go home
-          </Link>
+          </a>
         </div>
       </div>
     </div>
@@ -74,7 +97,31 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 }
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+  // Validates the same-domain language prefix the router rewrite stripped
+  // (see router.tsx). Also loads the language list first on every SSR
+  // request / client boot, so every later API call (seo-settings below,
+  // page loaders) already carries the right X-Localization.
+  beforeLoad: async ({ context, location }) => {
+    const languages = await context.queryClient.ensureQueryData(languagesQuery()).catch(() => null);
+    // Languages unavailable: don't take the site down over the prefix.
+    if (!languages) return { unknownLocale: false };
+
+    const { code } = splitLocalePrefix(getRealUrl().pathname);
+    if (!code) return { unknownLocale: false };
+    const lang = languages.find((l) => l.code === code);
+    // Only CMS language codes count as a prefix — anything else is a 404.
+    // Not `throw notFound()`: thrown from the root route (beforeLoad or
+    // loader) it escapes the document shell and renders as a 500. The flag
+    // makes RootComponent render the 404 page inside the normal shell.
+    if (!lang) return { unknownLocale: true };
+    // The default language is never prefixed: `/pl_pl/x` → `/x`. With the
+    // list loaded the router no longer re-adds this prefix, so the
+    // internal href redirects to the unprefixed URL.
+    if (lang.is_default) throw redirect({ href: location.href, replace: true });
+    return { unknownLocale: false };
+  },
   loader: async ({ context }) => {
+    if (context.unknownLocale) markNotFoundResponse();
     // This loader runs for every route (root) — a hard failure here would
     // break the whole app's SSR on any seo-settings hiccup, not just the
     // homepage. Confirmed not hypothetical: a GH Pages prerender build hit
@@ -83,7 +130,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     // scripts are enhancement, not core functionality, so degrade to the
     // hardcoded fallbacks below rather than taking the page down.
     const seo = await context.queryClient.ensureQueryData(seoSettingsQuery()).catch(() => null);
-    return { seo };
+    return { seo, unknownLocale: context.unknownLocale };
   },
   head: ({ loaderData }) => ({
     // Every route sets its own title/description via its own head() — these
@@ -172,12 +219,12 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
-  const { seo } = Route.useLoaderData();
+  const { seo, unknownLocale } = Route.useLoaderData();
 
   return (
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      {unknownLocale ? <NotFoundComponent /> : <Outlet />}
       {seo?.tracking_body_script && (
         // Same-origin CMS admin content, not user input (plan's explicit
         // contract) — placed at the end of <body> per the field's name,

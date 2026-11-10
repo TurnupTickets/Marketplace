@@ -1,35 +1,26 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Globe } from "lucide-react";
 import { languagesQuery } from "@/lib/api/queries";
+import { buildSwitchUrl, resolveLocale } from "@/lib/locale";
+import { getRealUrl } from "@/lib/locale-runtime";
 import type { LanguageResource } from "@/lib/api/types";
 
 /**
- * Domain-per-language switching (per product decision — not the language-
- * *content* switcher the plan explicitly deferred): picking a language
- * navigates the whole browser to another domain, since turnup-tickets.pl
- * (pl_pl), turnup-tickets.eu (en_en), and turnup-tickets.eu/ua_ua (ua_ua,
- * shares the .eu domain under a path prefix) are three separate frontend
- * deployments, not one app with client-side locale routing. This is a full
- * cross-origin navigation (`window.location.href =`), not a router Link —
- * client-side routing can't cross origins.
+ * Language switcher. Every CMS language is selectable:
+ * - a language with a `domain` → that domain (+ its `path_prefix`), i.e. a
+ *   separate deployment (turnup-tickets.pl / .eu / .eu/ua_ua);
+ * - a language without one → this same origin with a `/<code>/` path prefix
+ *   (none for the default language), see src/lib/locale.ts.
  *
- * Locally (and in any env not actually served from one of those domains)
- * no language will show as active — there's nothing on `window.location`
- * to match against. That's expected, not a bug: exercising the "current
- * language" highlight needs a real multi-domain deployment.
+ * Always a full navigation (`window.location.assign`), never a router Link:
+ * query cache, SSR head and translations are not keyed by language, so a
+ * fresh page load is what guarantees everything renders in the new one.
  */
-function buildSwitchUrl(lang: LanguageResource): string | null {
-  if (!lang.domain) return null;
-  const { pathname, search } = window.location;
-  return `https://${lang.domain}${lang.path_prefix ?? ""}${pathname}${search}`;
-}
-
-function isActiveLanguage(lang: LanguageResource): boolean {
-  if (typeof window === "undefined" || !lang.domain) return false;
-  if (window.location.hostname !== lang.domain) return false;
-  return lang.path_prefix ? window.location.pathname.startsWith(lang.path_prefix) : true;
+function currentLocation(languages: LanguageResource[]) {
+  const { origin, hostname, pathname, search } = window.location;
+  return { origin, hostname, pathname, search, languages };
 }
 
 export function LanguageSwitcher({ variant = "desktop" }: { variant?: "desktop" | "mobile" }) {
@@ -40,7 +31,13 @@ export function LanguageSwitcher({ variant = "desktop" }: { variant?: "desktop" 
   const [position, setPosition] = useState<{ top: number; right: number } | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const { data: languages } = useQuery(languagesQuery());
-  const active = languages?.find(isActiveLanguage) ?? languages?.find((l) => l.is_default);
+  // The root route prefetches languages on the server, but the query cache
+  // isn't dehydrated to the client, so the first client render has none —
+  // resolve the active flag only after mount to keep hydration identical
+  // (both render the neutral globe first).
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const active = mounted && languages ? resolveLocale({ ...getRealUrl(), languages }) : null;
 
   function toggle() {
     if (!open && buttonRef.current) {
@@ -98,16 +95,20 @@ export function LanguageSwitcher({ variant = "desktop" }: { variant?: "desktop" 
               className="fixed z-50 min-w-40 overflow-hidden rounded-2xl border border-border bg-card py-1 shadow-xl"
             >
               {(languages ?? []).map((lang) => {
-                const url = buildSwitchUrl(lang);
-                const isActive = lang === active;
+                const url = buildSwitchUrl(lang, currentLocation(languages ?? []));
+                const isActive = lang.code === active?.code;
                 return (
                   <li key={lang.code} role="option" aria-selected={isActive}>
                     <a
-                      href={url ?? "#"}
-                      aria-disabled={!url}
+                      href={url}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setOpen(false);
+                        if (!isActive) window.location.assign(url);
+                      }}
                       className={`flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors hover:bg-secondary ${
                         isActive ? "font-bold text-foreground" : "text-muted-foreground"
-                      } ${!url ? "pointer-events-none opacity-50" : ""}`}
+                      }`}
                     >
                       <span className="text-base leading-none">{lang.flag}</span>
                       {lang.name}

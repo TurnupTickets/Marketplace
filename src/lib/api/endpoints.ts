@@ -6,6 +6,7 @@ import {
   type LaravelResource,
 } from "./client";
 import { getCartToken } from "../cart-token";
+import { setLanguagesCache } from "../locale-runtime";
 import {
   mockAccountOrder,
   mockAccountOrders,
@@ -369,9 +370,12 @@ export async function lookupRedirect(path: string): Promise<RedirectResource | n
  * ------------------------------------------------------------------------- */
 
 export async function getLanguages(): Promise<LanguageResource[]> {
-  if (!API_ENABLED) return mockLanguages;
-  const res = await apiRequest<LaravelCollection<LanguageResource>>("/languages");
-  return res.data;
+  const languages = API_ENABLED
+    ? (await apiRequest<LaravelCollection<LanguageResource>>("/languages")).data
+    : mockLanguages;
+  // Feeds locale resolution for the router prefix and `X-Localization`.
+  setLanguagesCache(languages);
+  return languages;
 }
 
 export async function getTranslations(): Promise<TranslationsResult> {

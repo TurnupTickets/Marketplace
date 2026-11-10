@@ -9,6 +9,7 @@
 
 import { createIsomorphicFn } from "@tanstack/react-start";
 import { getRequestHeader, getRequestUrl } from "@tanstack/react-start/server";
+import { getRequestLocaleCode } from "@/lib/locale-runtime";
 
 const API_ORIGIN = import.meta.env["VITE_API_URL"] ?? "";
 export const API_ENABLED = API_ORIGIN.length > 0;
@@ -151,9 +152,15 @@ async function request<T>(
     }
   }
 
+  // Storefront language for the backend's SetLocale middleware (long code,
+  // e.g. `en_en`). Omitted for the default language and for the language
+  // list itself, which is what the resolution depends on.
+  const localeCode = path === "/languages" ? null : getRequestLocaleCode();
+
   const headers: Record<string, string> = {
     Accept: "application/json",
     ...(body ? { "Content-Type": "application/json" } : {}),
+    ...(localeCode ? { "X-Localization": localeCode } : {}),
     ...getSsrForwardHeaders(),
     ...options.headers,
   };

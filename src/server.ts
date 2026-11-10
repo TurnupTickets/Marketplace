@@ -2,6 +2,7 @@ import "./lib/error-capture";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
+import { NOT_FOUND_MARKER_HEADER } from "./lib/not-found-marker";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -46,6 +47,14 @@ async function proxySitemap(request: Request): Promise<Response | null> {
     console.error("sitemap proxy failed", error);
     return new Response("Sitemap unavailable", { status: 502 });
   }
+}
+
+/** See src/lib/not-found-marker.ts. */
+function applyNotFoundMarker(response: Response): Response {
+  if (response.headers.get(NOT_FOUND_MARKER_HEADER) !== "1") return response;
+  const headers = new Headers(response.headers);
+  headers.delete(NOT_FOUND_MARKER_HEADER);
+  return new Response(response.body, { status: 404, statusText: "Not Found", headers });
 }
 
 let serverEntryPromise: Promise<ServerEntry> | undefined;
@@ -93,7 +102,7 @@ export default {
 
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
-      return await normalizeCatastrophicSsrResponse(response);
+      return await normalizeCatastrophicSsrResponse(applyNotFoundMarker(response));
     } catch (error) {
       console.error(error);
       return new Response(renderErrorPage(), {
