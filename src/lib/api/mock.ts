@@ -11,6 +11,7 @@ import type {
   CreateOrderRequest,
   EventListResource,
   EventResource,
+  EventAdditionalCostParam,
   EventTicketGroupSummary,
   HomepageResource,
   LanguageResource,
@@ -199,31 +200,50 @@ function toListResource(s: EventSeed): EventListResource {
   };
 }
 
+/** Mirrors the backend's default `additional_cost` config: 3% per-ticket service fee. */
+const SERVICE_FEE_PERCENT = 3;
+
+function withServiceFee(
+  g: Omit<EventTicketGroupSummary, "service_amount" | "price_with_service">,
+): EventTicketGroupSummary {
+  const fee = Math.round(Number(g.price) * SERVICE_FEE_PERCENT) / 100;
+  return {
+    ...g,
+    service_amount: fee,
+    price_with_service: Math.round((Number(g.price) + fee) * 100) / 100,
+  };
+}
+
+const mockAdditionalCostParams: EventAdditionalCostParam[] = [
+  { id: "parking", label: "Miejsce parkingowe", price: 25, description: null },
+  { id: "fast-lane", label: "Szybkie wejście (fast lane)", price: 15, description: null },
+];
+
 const mockTicketGroups: EventTicketGroupSummary[] = [
-  {
+  withServiceFee({
     id: 1,
     name: "Trzecia partia biletów",
     price: "197.30",
     currency: "PLN",
     available_count: 340,
     status: TICKET_GROUP_STATUS.ACTIVE,
-  },
-  {
+  }),
+  withServiceFee({
     id: 2,
     name: "Bilet VIP",
     price: "298.62",
     currency: "PLN",
     available_count: 40,
     status: TICKET_GROUP_STATUS.ACTIVE,
-  },
-  {
+  }),
+  withServiceFee({
     id: 3,
     name: "Bilet dziecięcy",
     price: "95.99",
     currency: "PLN",
     available_count: 120,
     status: TICKET_GROUP_STATUS.ACTIVE,
-  },
+  }),
 ];
 
 /** Hand-authored per-city coordinates — deliberately incomplete so some mock
@@ -259,6 +279,7 @@ function toDetailResource(s: EventSeed): EventResource {
     lng: coords?.lng ?? null,
     primary_tag: s.tag,
     ticket_groups: mockTicketGroups,
+    additional_cost_params: mockAdditionalCostParams,
   };
 }
 
@@ -355,23 +376,35 @@ export function mockQuote(eventId: number, input: QuoteRequest): QuoteResult {
     });
 
   const rawSubtotal = breakdown.reduce((sum, b) => sum + b.subtotal, 0);
+  const quantity = breakdown.reduce((sum, b) => sum + b.quantity, 0);
+  const serviceAmount =
+    Math.round(groups.reduce((sum, g) => sum + g.service_amount * g.quantity, 0) * 100) / 100;
 
   let discount: QuoteResult["discount"] = null;
   let discountAmount = 0;
   const code = input.discount?.trim().toUpperCase();
   if (code) {
     const entry = mockDiscountCodes[code];
-    if (entry) {
-      discount = { code, info: entry.info };
-      discountAmount = Math.round(rawSubtotal * (entry.percent / 100) * 100) / 100;
+    if (!entry) {
+      // Same shape as the backend's DiscountCodeNotFoundException (422).
+      throw new ApiError(422, "Podany kod rabatowy nie istnieje", {
+        success: false,
+        error: { code: "DISCOUNT_CODE_NOT_FOUND", message: "Podany kod rabatowy nie istnieje" },
+      });
     }
+    discount = { code, info: entry.info };
+    // Backend discounts (group price + service fee) together.
+    discountAmount = Math.round((rawSubtotal + serviceAmount) * (entry.percent / 100) * 100) / 100;
   }
 
   const additionalCosts = {
     delivery: input.delivery ? ADDON_PRICES.delivery : 0,
     gift: input.ticket_as_gift ? ADDON_PRICES.gift : 0,
     sms: input.sms ? ADDON_PRICES.sms : 0,
-    additional_cost_params: 0,
+    additional_cost_params: Object.keys(input.additional_cost_params ?? {}).reduce(
+      (sum, id) => sum + (mockAdditionalCostParams.find((p) => p.id === id)?.price ?? 0) * quantity,
+      0,
+    ),
   };
   const additionalCostTotal =
     additionalCosts.delivery +
@@ -379,7 +412,7 @@ export function mockQuote(eventId: number, input: QuoteRequest): QuoteResult {
     additionalCosts.sms +
     additionalCosts.additional_cost_params;
 
-  const subtotal = rawSubtotal - discountAmount;
+  const subtotal = rawSubtotal + serviceAmount - discountAmount;
 
   return {
     currency: "PLN",
@@ -388,7 +421,7 @@ export function mockQuote(eventId: number, input: QuoteRequest): QuoteResult {
     discount_amount: discountAmount,
     discount,
     additional_costs: additionalCosts,
-    service_amount: 0,
+    service_amount: serviceAmount,
     total: subtotal + additionalCostTotal,
   };
 }

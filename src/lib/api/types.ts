@@ -34,8 +34,21 @@ export type EventTicketGroupSummary = {
   /** Laravel decimal cast serializes as a string, not a number. */
   price: string;
   currency: string;
+  /** Per-ticket service fee (EventService::calculateAdditionalCost); 0 when the event has fees off. */
+  service_amount: number;
+  /** `price + service_amount`, rounded 2dp — what one ticket really costs before discounts. */
+  price_with_service: number;
   available_count: number;
   status: TicketGroupStatus;
+};
+
+/** Event-level optional extra (admin "Dodatkowe koszty doliczane do ceny biletu"), priced per ticket. */
+export type EventAdditionalCostParam = {
+  id: string;
+  label: string;
+  price: number;
+  /** Always null today — the admin repeater has no description field yet. */
+  description: string | null;
 };
 
 export type EventResource = {
@@ -56,6 +69,8 @@ export type EventResource = {
   lng: number | null;
   primary_tag: Tag | null;
   ticket_groups: EventTicketGroupSummary[];
+  /** Empty when the event has additional costs off / none configured. */
+  additional_cost_params: EventAdditionalCostParam[];
 };
 
 export type HomepageTagSlider = { tag: Tag; events: EventListResource[] };
@@ -95,7 +110,8 @@ export type QuoteRequest = {
   sms?: 0 | 1;
   delivery?: 0 | 1;
   ticket_as_gift?: 0 | 1;
-  additional_cost_params?: string[];
+  /** `{ "<param_id>": 1 }` — a keyed map (backend reads `array_keys`), same shape as `tickets`. */
+  additional_cost_params?: Record<string, 1>;
 };
 
 export type QuoteTicketGroupBreakdown = {

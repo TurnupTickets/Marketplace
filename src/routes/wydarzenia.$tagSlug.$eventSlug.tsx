@@ -3,6 +3,7 @@ import { ClientOnly, createFileRoute, Link, notFound } from "@tanstack/react-rou
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { CalendarDays, ChevronDown, MapPin, Minus, Plus, ShieldCheck } from "lucide-react";
 import { PageShell } from "@/components/turnup/PageShell";
+import { PriceBreakdown } from "@/components/turnup/PriceBreakdown";
 import { SeatPicker } from "@/components/turnup/SeatPicker";
 import {
   Dialog,
@@ -13,10 +14,17 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useQuote } from "@/hooks/use-quote";
-import { ApiError, onEventImageError, resolveMediaUrl } from "@/lib/api/client";
+import {
+  ApiError,
+  getDomainErrorCode,
+  getDomainErrorMessage,
+  onEventImageError,
+  resolveMediaUrl,
+} from "@/lib/api/client";
 import { eventDetailQuery, seatMapQuery } from "@/lib/api/queries";
 import { normalizeCmsHtml } from "@/lib/decode-cms-html";
 import { formatEventDateTime } from "@/lib/format-event-date";
+import { formatPrice } from "@/lib/format-price";
 import { TICKET_GROUP_STATUS } from "@/lib/api/types";
 import type { EventTicketGroupSummary, SeatSelection, TicketSelection } from "@/lib/api/types";
 
@@ -26,6 +34,13 @@ import type { EventTicketGroupSummary, SeatSelection, TicketSelection } from "@/
 const LocationMap = lazy(() =>
   import("@/components/turnup/LocationMap").then((m) => ({ default: m.LocationMap })),
 );
+
+/**
+ * An unknown/expired code is a quote-level 422 (not `discount: null` in a
+ * 200), so it has to be read off the error — otherwise the whole quote just
+ * looks "failed" and the buyer never learns the code was the problem.
+ */
+const DISCOUNT_ERROR_CODES = new Set(["DISCOUNT_CODE_NOT_FOUND", "DISCOUNT_CODE_EXPIRED"]);
 
 /** `POST .../quote` 422 shape when seats are advisorily held by a different cart's token. */
 function parseOccupiedSeatIds(error: unknown): Set<number> {
@@ -87,9 +102,11 @@ function EventDetail() {
   const [sms, setSms] = useState(false);
   const [delivery, setDelivery] = useState(false);
   const [giftTicket, setGiftTicket] = useState(false);
+  const [costParamIds, setCostParamIds] = useState<string[]>([]);
   const [discountOpen, setDiscountOpen] = useState(false);
   const [discountCode, setDiscountCode] = useState("");
   const [appliedDiscountCode, setAppliedDiscountCode] = useState("");
+  const [discountError, setDiscountError] = useState<string | null>(null);
 
   // Groups the seat map covers use seat selection instead of a qty stepper
   // — for those groups the ticket count IS the number of selected seats.
@@ -136,6 +153,11 @@ function EventDetail() {
   // No static addon/discount price list exists on the backend — the quote
   // endpoint is the only source of truth, so every selection change
   // (tickets, seats, flags, discount code) re-prices through it (debounced).
+  const additionalCostParams = useMemo(
+    () => Object.fromEntries(costParamIds.map((id) => [id, 1 as const])),
+    [costParamIds],
+  );
+
   const quoteRequest = useMemo(
     () => ({
       tickets,
@@ -144,8 +166,9 @@ function EventDetail() {
       sms: (sms ? 1 : 0) as 0 | 1,
       delivery: (delivery ? 1 : 0) as 0 | 1,
       ticket_as_gift: (giftTicket ? 1 : 0) as 0 | 1,
+      additional_cost_params: additionalCostParams,
     }),
-    [tickets, seatsByGroup, appliedDiscountCode, sms, delivery, giftTicket],
+    [tickets, seatsByGroup, appliedDiscountCode, sms, delivery, giftTicket, additionalCostParams],
   );
 
   const {
@@ -185,15 +208,21 @@ function EventDetail() {
   // previous non-zero total, and a just-applied discount code briefly
   // showing "invalid" against the pre-discount quote).
   const quotePending = quoteHasTickets && (quoteLoading || quoteFetching || quoteDebouncing);
-  const total = totalCount === 0 ? 0 : (quote?.total ?? 0);
   const discountApplied =
     Boolean(appliedDiscountCode) && !quotePending && !quoteErrored && quote?.discount != null;
-  const discountInvalid =
-    Boolean(appliedDiscountCode) &&
-    !quotePending &&
-    !quoteErrored &&
-    quote != null &&
-    quote.discount == null;
+  // A rejected code is dropped from the request (so the next quote prices
+  // the cart without it instead of showing the last pre-error total), and
+  // the backend's own message is kept for display.
+  useEffect(() => {
+    if (!appliedDiscountCode || !quoteErrored) return;
+    const code = getDomainErrorCode(quoteRawError);
+    if (code == null || !DISCOUNT_ERROR_CODES.has(code)) return;
+    setDiscountError(getDomainErrorMessage(quoteRawError) ?? "Nieprawidłowy kod rabatowy");
+    setAppliedDiscountCode("");
+  }, [appliedDiscountCode, quoteErrored, quoteRawError]);
+  // Any other quote failure (sold out, seat conflict, ...) — never show a
+  // stale total next to an enabled checkout button.
+  const quoteBlocked = quoteHasTickets && quoteErrored && !quotePending;
 
   // Clearing the cart drops the applied discount too — re-adding tickets
   // should require re-entering the code, not silently reapply the old one.
@@ -210,6 +239,7 @@ function EventDetail() {
   const applyDiscount = () => {
     const code = discountCode.trim();
     if (!code) return;
+    setDiscountError(null);
     setAppliedDiscountCode(code);
   };
 
@@ -310,6 +340,7 @@ function EventDetail() {
                     onChange={(e) => {
                       setDiscountCode(e.target.value);
                       setAppliedDiscountCode("");
+                      setDiscountError(null);
                     }}
                     placeholder="Wpisz kod rabatowy"
                     className="min-w-0 flex-1 rounded-xl border border-border bg-background px-3 py-2 text-sm"
@@ -331,9 +362,7 @@ function EventDetail() {
                     Zastosowano rabat — {quote?.discount?.info}
                   </p>
                 )}
-                {discountInvalid && (
-                  <p className="text-xs text-destructive">Nieprawidłowy kod rabatowy</p>
-                )}
+                {discountError && <p className="text-xs text-destructive">{discountError}</p>}
               </div>
             )}
           </div>
@@ -372,33 +401,66 @@ function EventDetail() {
               checked={sms}
               onToggle={() => setSms((v) => !v)}
               price={quotePending ? undefined : quote?.additional_costs.sms}
+              currency={quote?.currency ?? event.currency}
             />
             <AddonRow
               label="Zamawiam kolekcjonerski bilet z wysyłką"
               checked={delivery}
               onToggle={() => setDelivery((v) => !v)}
               price={quotePending ? undefined : quote?.additional_costs.delivery}
+              currency={quote?.currency ?? event.currency}
             />
             <AddonRow
               label="Zamawiam specjalny bilet prezentowy"
               checked={giftTicket}
               onToggle={() => setGiftTicket((v) => !v)}
               price={quotePending ? undefined : quote?.additional_costs.gift}
+              currency={quote?.currency ?? event.currency}
             />
+            {/* Event-level extras are priced per ticket — the list price is
+                known up front, so it's shown even before anything is ticked. */}
+            {event.additional_cost_params.map((param) => (
+              <AddonRow
+                key={param.id}
+                label={param.label}
+                hint={`${formatPrice(param.price, event.currency)} / bilet`}
+                checked={costParamIds.includes(param.id)}
+                onToggle={() =>
+                  setCostParamIds((prev) =>
+                    prev.includes(param.id)
+                      ? prev.filter((id) => id !== param.id)
+                      : [...prev, param.id],
+                  )
+                }
+                price={quotePending || totalCount === 0 ? undefined : param.price * totalCount}
+                currency={quote?.currency ?? event.currency}
+              />
+            ))}
           </ul>
 
-          <div className="flex items-center justify-between border-t border-border pt-4">
-            <span className="text-xs uppercase tracking-widest text-muted-foreground">
-              {totalCount} {totalCount === 1 ? "bilet" : "biletów"}
-            </span>
-            {quotePending ? (
-              <span className="text-sm text-muted-foreground">Liczenie…</span>
+          <div className="border-t border-border pt-4">
+            {totalCount === 0 ? (
+              <div className="flex items-center justify-between">
+                <span className="text-xs uppercase tracking-widest text-muted-foreground">
+                  0 biletów
+                </span>
+                <span className="font-display text-xl font-bold">
+                  {formatPrice(0, event.currency)}
+                </span>
+              </div>
+            ) : quotePending ? (
+              <p className="text-right text-sm text-muted-foreground">Liczenie…</p>
+            ) : quoteBlocked || !quote ? (
+              <p className="text-sm font-semibold text-destructive">
+                {getDomainErrorMessage(quoteRawError) ??
+                  "Nie udało się przeliczyć ceny. Spróbuj ponownie."}
+              </p>
             ) : (
-              <span className="font-display text-xl font-bold">{total.toFixed(2)} PLN</span>
+              <PriceBreakdown quote={quote} showTicketLines={false} />
             )}
           </div>
 
-          {totalCount === 0 || quotePending ? (
+          {totalCount === 0 || quotePending || quoteBlocked || !quote ? (
             <span
               aria-disabled
               className="gradient-brand-soft block w-full rounded-full px-6 py-4 text-center text-sm font-bold uppercase text-primary-foreground opacity-40"
@@ -416,6 +478,7 @@ function EventDetail() {
                 sms: sms ? 1 : 0,
                 delivery: delivery ? 1 : 0,
                 ticket_as_gift: giftTicket ? 1 : 0,
+                additional_cost_params: additionalCostParams,
               }}
               className="gradient-brand-soft block w-full rounded-full px-6 py-4 text-center text-sm font-bold uppercase text-primary-foreground"
             >
@@ -494,8 +557,13 @@ function GroupRow({
       <div className="min-w-0 flex-1 space-y-1">
         <p className="font-display text-sm font-bold uppercase">{group.name}</p>
         <p className="pt-1 text-base font-bold text-primary">
-          {Number(group.price).toFixed(2)} {group.currency}
+          {formatPrice(group.price_with_service, group.currency)}
         </p>
+        {group.service_amount > 0 && (
+          <p className="text-[0.65rem] uppercase tracking-wide text-muted-foreground">
+            w tym opłata serwisowa {formatPrice(group.service_amount, group.currency)}
+          </p>
+        )}
         {soldOut && (
           <p className="text-[0.65rem] uppercase tracking-wide text-destructive">Wyprzedane</p>
         )}
@@ -540,10 +608,14 @@ function AddonRow({
   checked,
   onToggle,
   price,
+  currency,
+  hint,
 }: {
   label: string;
+  hint?: string;
   checked: boolean;
   onToggle: () => void;
+  currency: string;
   /** Only known once the live quote resolves with this flag set — no static price list exists. */
   price: number | undefined;
 }) {
@@ -556,9 +628,14 @@ function AddonRow({
           onChange={onToggle}
           className="mt-0.5 size-4 shrink-0 rounded border-border accent-primary"
         />
-        <span className="flex-1">{label}</span>
+        <span className="flex-1">
+          {label}
+          {hint && <span className="block text-xs text-muted-foreground">{hint}</span>}
+        </span>
         {checked && price != null && price > 0 && (
-          <span className="shrink-0 font-semibold text-primary">+{price.toFixed(2)} PLN</span>
+          <span className="shrink-0 font-semibold text-primary">
+            +{formatPrice(price, currency)}
+          </span>
         )}
       </label>
     </li>
