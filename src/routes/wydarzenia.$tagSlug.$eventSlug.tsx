@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { ClientOnly, createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { CalendarDays, ChevronDown, MapPin, Minus, Plus, ShieldCheck } from "lucide-react";
+import { EventImage } from "@/components/turnup/EventImage";
 import { PageShell } from "@/components/turnup/PageShell";
 import { PriceBreakdown } from "@/components/turnup/PriceBreakdown";
 import { SeatPicker } from "@/components/turnup/SeatPicker";
@@ -14,13 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useQuote } from "@/hooks/use-quote";
-import {
-  ApiError,
-  getDomainErrorCode,
-  getDomainErrorMessage,
-  onEventImageError,
-  resolveMediaUrl,
-} from "@/lib/api/client";
+import { ApiError, getDomainErrorCode, getDomainErrorMessage } from "@/lib/api/client";
 import { eventDetailQuery, seatMapQuery } from "@/lib/api/queries";
 import { normalizeCmsHtml } from "@/lib/decode-cms-html";
 import { formatEventDateTime } from "@/lib/format-event-date";
@@ -260,16 +255,14 @@ function EventDetail() {
           </h1>
 
           <div className="grid gap-6 lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)] lg:items-start">
-            <div className="mx-auto aspect-[3/4] w-full max-w-sm overflow-hidden rounded-3xl border border-border lg:mx-0 lg:max-w-none">
-              <img
-                src={resolveMediaUrl(event.cover_url)}
-                onError={onEventImageError}
-                alt={`${event.name} — plakat wydarzenia`}
-                width={1080}
-                height={1440}
-                className="size-full object-cover"
-              />
-            </div>
+            <EventImage
+              src={event.cover_url}
+              alt={`${event.name} — plakat wydarzenia`}
+              width={1080}
+              height={1440}
+              loading="eager"
+              className="mx-auto aspect-[3/4] w-full max-w-sm rounded-3xl border border-border lg:mx-0 lg:max-w-none"
+            />
 
             <div className="space-y-4 rounded-3xl border border-border bg-card p-6 md:p-8">
               <h2 className="font-display text-xl font-bold uppercase">O wydarzeniu</h2>

@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
+import { EventImage } from "./EventImage";
 import { Link } from "@tanstack/react-router";
-import { onEventImageError, resolveMediaUrl } from "@/lib/api/client";
 import { parseEventPath } from "@/lib/api/endpoints";
 import type { EventListResource } from "@/lib/api/types";
 
@@ -20,14 +20,14 @@ export function EventCard({
   const path = parseEventPath(event.canonical_url);
 
   const image = (
-    <img
-      src={resolveMediaUrl(event.cover_url)}
-      onError={onEventImageError}
+    <EventImage
+      src={event.cover_url}
       alt={`${event.name} — ${event.city}`}
       width={1080}
       height={1440}
       loading={priority ? "eager" : "lazy"}
-      className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+      className="size-full"
+      imgClassName="group-hover:scale-[1.04]"
     />
   );
 

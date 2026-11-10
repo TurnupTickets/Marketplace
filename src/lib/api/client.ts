@@ -7,7 +7,6 @@
  * set, the app falls back to local mock data (see ./mock.ts).
  */
 
-import type { SyntheticEvent } from "react";
 import { createIsomorphicFn } from "@tanstack/react-start";
 import { getRequestHeader, getRequestUrl } from "@tanstack/react-start/server";
 
@@ -23,16 +22,6 @@ export const API_ENABLED = API_ORIGIN.length > 0;
  * `cover_url`, the second a present-but-broken one.
  */
 export const EVENT_PLACEHOLDER_IMAGE = "/event-placeholder.svg";
-
-/** `<img onError={onEventImageError}>` — covers the present-but-broken-URL
- * half of the gap `resolveMediaUrl` alone can't (a `cover_url` that
- * resolves to a real URL which then 404s). `onerror = null` first so a
- * (theoretically impossible, but not worth risking) broken placeholder
- * can't loop. */
-export function onEventImageError(e: SyntheticEvent<HTMLImageElement>): void {
-  e.currentTarget.onerror = null;
-  e.currentTarget.src = EVENT_PLACEHOLDER_IMAGE;
-}
 
 /**
  * `cover_url`/`gallery_urls` (Spatie Media Library's `getFirstMediaUrl()`)

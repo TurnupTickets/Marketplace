@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+import { EventImage } from "./EventImage";
 import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Loader2, Search, X } from "lucide-react";
-import { onEventImageError, resolveMediaUrl } from "@/lib/api/client";
 import { parseEventPath } from "@/lib/api/endpoints";
 import { activeEventsQuery } from "@/lib/api/queries";
 
@@ -102,14 +102,12 @@ export function SearchModal({ open, onClose }: { open: boolean; onClose: () => v
                       onClick={onClose}
                       className="flex items-center gap-4 rounded-2xl px-3 py-2 transition-colors hover:bg-secondary"
                     >
-                      <img
-                        src={resolveMediaUrl(event.cover_url)}
-                        onError={onEventImageError}
+                      <EventImage
+                        src={event.cover_url}
                         alt={event.name}
                         width={96}
                         height={96}
-                        loading="lazy"
-                        className="size-14 rounded-xl object-cover"
+                        className="size-14 shrink-0 rounded-xl"
                       />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-display text-sm font-bold text-foreground">

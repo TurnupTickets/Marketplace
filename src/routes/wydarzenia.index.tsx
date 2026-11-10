@@ -1,10 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { EventImage } from "@/components/turnup/EventImage";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { ChevronLeft, ChevronRight, MapPin, X } from "lucide-react";
 import { PageShell } from "@/components/turnup/PageShell";
-import { onEventImageError, resolveMediaUrl } from "@/lib/api/client";
 import { parseEventPath } from "@/lib/api/endpoints";
 import { eventsPageQuery } from "@/lib/api/queries";
 import { formatEventDate } from "@/lib/format-event-date";
@@ -116,17 +116,14 @@ function EventListCard({ event }: { event: EventListResource }) {
       params={{ tagSlug: path.tagSlug, eventSlug: path.eventSlug }}
       className="group overflow-hidden rounded-3xl border border-border bg-card transition-colors hover:border-primary"
     >
-      <div className="aspect-[3/4] overflow-hidden">
-        <img
-          src={resolveMediaUrl(event.cover_url)}
-          onError={onEventImageError}
-          alt={`${event.name} — ${event.city}`}
-          width={1080}
-          height={1440}
-          loading="lazy"
-          className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
-        />
-      </div>
+      <EventImage
+        src={event.cover_url}
+        alt={`${event.name} — ${event.city}`}
+        width={1080}
+        height={1440}
+        className="aspect-[3/4]"
+        imgClassName="group-hover:scale-105"
+      />
       <div className="space-y-2 p-4">
         <h2 className="font-display text-base font-bold uppercase leading-tight">{event.name}</h2>
         <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
