@@ -1,4 +1,4 @@
-import { ChevronRight, Handshake, MoveLeft, MoveRight } from "lucide-react";
+import { ChevronRight, Handshake } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { onEventImageError, resolveMediaUrl } from "@/lib/api/client";
 import type { AccountTicketResource } from "@/lib/api/types";
@@ -11,20 +11,20 @@ export type UpcomingEvent = AccountTicketResource["event"];
 export function PromoRow({
   upcoming,
   isLoggedIn,
-  adHref = "#",
 }: {
   upcoming: UpcomingEvent[];
   isLoggedIn: boolean;
-  adHref?: string;
 }) {
+  // The ADS tile was removed — the backend has no ads resource yet. It comes
+  // back (as a third tile) together with the ads module.
   return (
-    <section className="grid grid-cols-3 gap-2.5 px-4 md:gap-3 md:px-6">
-      {/* ZALOGUJ — 2/3 on mobile, 1/3 on desktop. Split 50/50 inside. Whole card is one
+    <section className="grid grid-cols-3 gap-2.5 px-4 md:grid-cols-2 md:gap-3 md:px-6">
+      {/* ZALOGUJ — 2/3 on mobile, 1/2 on desktop. Split 50/50 inside. Whole card is one
           click target: logged in -> my orders in profil, logged out -> login. */}
       <Link
         {...(isLoggedIn ? { to: "/profil", hash: "zamowienia" } : { to: "/logowanie" })}
         aria-label="Moje nadchodzące wydarzenia"
-        className="gradient-brand-soft group col-span-2 flex min-w-0 items-stretch gap-2 rounded-2xl p-2 md:order-1 md:col-span-1 md:rounded-full md:p-1.5"
+        className="gradient-brand-soft group col-span-2 flex min-w-0 items-stretch gap-2 rounded-2xl p-2 md:col-span-1 md:rounded-full md:p-1.5"
       >
         <div className="flex basis-1/2 items-center px-2 md:px-3">
           <p className="font-display text-xs font-bold uppercase leading-tight text-primary-foreground md:text-sm">
@@ -63,8 +63,8 @@ export function PromoRow({
         )}
       </Link>
 
-      {/* SPRZEDAWAJ — 1/3 on mobile and desktop */}
-      <button className="gradient-brand col-span-1 flex min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-2 py-3 text-center md:order-3 md:flex-row md:justify-between md:gap-4 md:rounded-full md:px-6 md:text-left">
+      {/* SPRZEDAWAJ — 1/3 on mobile, 1/2 on desktop */}
+      <button className="gradient-brand col-span-1 flex min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-2 py-3 text-center md:flex-row md:justify-between md:gap-4 md:rounded-full md:px-6 md:text-left">
         <Handshake
           className="order-first size-6 shrink-0 text-primary-foreground md:order-last md:size-8"
           strokeWidth={1.5}
@@ -75,18 +75,6 @@ export function PromoRow({
           bilety u nas!
         </span>
       </button>
-
-      {/* ADS — full width on mobile, 1/3 on desktop */}
-      <a
-        href={adHref}
-        className="order-last col-span-3 flex min-w-0 items-center justify-center gap-3 rounded-full bg-brand-blue/70 px-5 py-3 md:order-2 md:col-span-1 md:gap-4 md:px-6"
-      >
-        <MoveRight className="size-5 shrink-0 text-background md:size-6" strokeWidth={3} />
-        <span className="font-display text-lg font-bold tracking-tight text-background/80 md:text-xl">
-          ADS
-        </span>
-        <MoveLeft className="size-5 shrink-0 text-background md:size-6" strokeWidth={3} />
-      </a>
     </section>
   );
 }

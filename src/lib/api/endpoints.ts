@@ -246,7 +246,11 @@ export async function logout(): Promise<void> {
   await apiRequest<{ success: boolean }>("/auth/logout", { method: "POST" });
 }
 
-/** Returns `null` on 401 ("not logged in"), not an error surfaced to the user. */
+/**
+ * Returns `null` for a guest. The API answers a guest with 200 `{ data: null }`
+ * (no 401, so nothing is logged in the browser console); a 401 from an older
+ * deployment is still swallowed into `null` rather than surfaced.
+ */
 export async function getCurrentUser(): Promise<UserResource | null> {
   if (!API_ENABLED) return null;
   try {
