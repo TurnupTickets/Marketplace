@@ -20,6 +20,7 @@ import { eventDetailQuery, seatMapQuery } from "@/lib/api/queries";
 import { normalizeCmsHtml } from "@/lib/decode-cms-html";
 import { formatEventDateTime } from "@/lib/format-event-date";
 import { formatPrice } from "@/lib/format-price";
+import { discountEffect } from "@/lib/price-breakdown";
 import { TICKET_GROUP_STATUS } from "@/lib/api/types";
 import type { EventTicketGroupSummary, SeatSelection, TicketSelection } from "@/lib/api/types";
 
@@ -203,8 +204,12 @@ function EventDetail() {
   // previous non-zero total, and a just-applied discount code briefly
   // showing "invalid" against the pre-discount quote).
   const quotePending = quoteHasTickets && (quoteLoading || quoteFetching || quoteDebouncing);
-  const discountApplied =
-    Boolean(appliedDiscountCode) && !quotePending && !quoteErrored && quote?.discount != null;
+  // A valid code can still match none of the selected tickets (group-scoped
+  // code) — the API then returns `discount` with a 0 amount.
+  const discountState =
+    Boolean(appliedDiscountCode) && !quotePending && !quoteErrored && quote
+      ? discountEffect(quote)
+      : "none";
   // A rejected code is dropped from the request (so the next quote prices
   // the cart without it instead of showing the last pre-error total), and
   // the backend's own message is kept for display.
@@ -350,7 +355,12 @@ function EventDetail() {
                 {totalCount === 0 && (
                   <p className="text-xs text-muted-foreground">Wybierz najpierw liczbę biletów.</p>
                 )}
-                {discountApplied && (
+                {discountState === "not-applicable" && (
+                  <p className="text-xs text-muted-foreground">
+                    Ten kod nie dotyczy wybranych biletów.
+                  </p>
+                )}
+                {discountState === "applied" && (
                   <p className="text-xs font-semibold text-primary">
                     Zastosowano rabat — {quote?.discount?.info}
                   </p>

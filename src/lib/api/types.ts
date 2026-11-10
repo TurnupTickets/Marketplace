@@ -126,6 +126,13 @@ export type QuoteTicketGroupBreakdown = {
 export type QuoteResult = {
   currency: string;
   ticket_groups: QuoteTicketGroupBreakdown[];
+  /**
+   * Σ group base subtotals, 2dp. Backend-owned like every amount here: the
+   * parts (tickets_amount + service_amount − discount_amount + additional
+   * costs) sum exactly to `total`, which equals the order's payable amount.
+   * Optional until every API deployment sends it.
+   */
+  tickets_amount?: number;
   subtotal: number;
   discount_amount: number;
   discount: { code: string; info: string } | null;

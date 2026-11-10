@@ -412,17 +412,21 @@ export function mockQuote(eventId: number, input: QuoteRequest): QuoteResult {
     additionalCosts.sms +
     additionalCosts.additional_cost_params;
 
-  const subtotal = rawSubtotal + serviceAmount - discountAmount;
+  // Mirrors the backend contract: every amount is 2dp and the parts sum
+  // exactly to `total` (the payable amount).
+  const round2 = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100;
+  const subtotal = round2(rawSubtotal + serviceAmount - discountAmount);
 
   return {
     currency: "PLN",
     ticket_groups: breakdown,
+    tickets_amount: round2(rawSubtotal),
     subtotal,
     discount_amount: discountAmount,
     discount,
     additional_costs: additionalCosts,
     service_amount: serviceAmount,
-    total: subtotal + additionalCostTotal,
+    total: round2(subtotal + additionalCostTotal),
   };
 }
 
