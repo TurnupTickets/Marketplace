@@ -422,7 +422,7 @@ function EventDetail() {
             />
             {/* Event-level extras are priced per ticket — the list price is
                 known up front, so it's shown even before anything is ticked. */}
-            {event.additional_cost_params.map((param) => (
+            {(event.additional_cost_params ?? []).map((param) => (
               <AddonRow
                 key={param.id}
                 label={param.label}
@@ -560,11 +560,13 @@ function GroupRow({
       <div className="min-w-0 flex-1 space-y-1">
         <p className="font-display text-sm font-bold uppercase">{group.name}</p>
         <p className="pt-1 text-base font-bold text-primary">
-          {formatPrice(group.price_with_service, group.currency)}
+          {/* Older API deployments don't send the fee fields yet — fall back
+              to the base price rather than "0.00". */}
+          {formatPrice(group.price_with_service ?? group.price, group.currency)}
         </p>
-        {group.service_amount > 0 && (
+        {(group.service_amount ?? 0) > 0 && (
           <p className="text-[0.65rem] uppercase tracking-wide text-muted-foreground">
-            w tym opłata serwisowa {formatPrice(group.service_amount, group.currency)}
+            w tym opłata serwisowa {formatPrice(group.service_amount ?? 0, group.currency)}
           </p>
         )}
         {soldOut && (

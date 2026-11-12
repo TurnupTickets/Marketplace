@@ -47,14 +47,32 @@ export function EventImage({
     setLoaded(false);
   }
 
-  const markIfComplete = useCallback((img: HTMLImageElement | null) => {
-    if (!img?.complete) return;
-    // `complete` is also true for a failed load; a decoded image has a
-    // width (an SVG without intrinsic size can report 0, so the
-    // placeholder counts as loaded regardless).
-    if (img.naturalWidth > 0 || img.src.endsWith(EVENT_PLACEHOLDER_IMAGE)) setLoaded(true);
-    else img.dispatchEvent(new Event("error"));
+  // Reads the element's own src (not state), so it's safe from the
+  // mount-time ref callback as well as from onError.
+  const handleError = useCallback((img: HTMLImageElement) => {
+    if (img.src.endsWith(EVENT_PLACEHOLDER_IMAGE)) {
+      // Placeholder itself failed — stop the shimmer rather than loop.
+      setLoaded(true);
+    } else {
+      setLoaded(false);
+      setCurrent(EVENT_PLACEHOLDER_IMAGE);
+      // State may already hold the placeholder (src resolved to it but the
+      // element ended up elsewhere), in which case React won't rewrite src.
+      img.src = EVENT_PLACEHOLDER_IMAGE;
+    }
   }, []);
+
+  const markIfComplete = useCallback(
+    (img: HTMLImageElement | null) => {
+      if (!img?.complete) return;
+      // `complete` is also true for a load that failed before hydration; a
+      // decoded image has a width (an SVG without intrinsic size can report
+      // 0, so the placeholder counts as loaded regardless).
+      if (img.naturalWidth > 0 || img.src.endsWith(EVENT_PLACEHOLDER_IMAGE)) setLoaded(true);
+      else handleError(img);
+    },
+    [handleError],
+  );
 
   return (
     <span className={`relative block overflow-hidden ${className}`}>
@@ -68,15 +86,7 @@ export function EventImage({
         loading={loading}
         decoding="async"
         onLoad={() => setLoaded(true)}
-        onError={() => {
-          if (current !== EVENT_PLACEHOLDER_IMAGE) {
-            setLoaded(false);
-            setCurrent(EVENT_PLACEHOLDER_IMAGE);
-          } else {
-            // Placeholder itself failed — stop the shimmer rather than loop.
-            setLoaded(true);
-          }
-        }}
+        onError={(e) => handleError(e.currentTarget)}
         className={`event-image-fade size-full object-cover ${loaded ? "opacity-100" : "opacity-0"} ${imgClassName}`}
       />
     </span>

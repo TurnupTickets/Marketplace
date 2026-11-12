@@ -13,7 +13,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { languagesQuery, seoSettingsQuery } from "../lib/api/queries";
 import { splitLocalePrefix } from "../lib/locale";
-import { getRealUrl } from "../lib/locale-runtime";
+import { getRealUrl, setLanguagesCache } from "../lib/locale-runtime";
 import { createIsomorphicFn } from "@tanstack/react-start";
 import { setResponseHeader } from "@tanstack/react-start/server";
 import { NOT_FOUND_MARKER_HEADER } from "../lib/not-found-marker";
@@ -130,7 +130,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     // scripts are enhancement, not core functionality, so degrade to the
     // hardcoded fallbacks below rather than taking the page down.
     const seo = await context.queryClient.ensureQueryData(seoSettingsQuery()).catch(() => null);
-    return { seo, unknownLocale: context.unknownLocale };
+    // Shipped to the client with the SSR payload: the browser's query cache
+    // isn't dehydrated, so without this the client-side languages cache (and
+    // with it X-Localization on domain-based languages) would stay empty
+    // after hydration until something refetched the list.
+    const languages = context.queryClient.getQueryData(languagesQuery().queryKey) ?? null;
+    return { seo, unknownLocale: context.unknownLocale, languages };
   },
   head: ({ loaderData }) => ({
     // Every route sets its own title/description via its own head() — these
@@ -208,6 +213,11 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="en">
       <head>
         <HeadContent />
+        {/* EventImage starts transparent and fades in once hydrated JS sees
+            the load — without JS that never happens, so show images as-is. */}
+        <noscript>
+          <style>{`.event-image-fade{opacity:1!important}.event-image-shimmer{display:none}`}</style>
+        </noscript>
       </head>
       <body>
         {children}
@@ -219,7 +229,10 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
-  const { seo, unknownLocale } = Route.useLoaderData();
+  const { seo, unknownLocale, languages } = Route.useLoaderData();
+  // Synchronous on purpose (not an effect): it must be in place before any
+  // child's first client-side API call. Idempotent module-level write.
+  if (languages) setLanguagesCache(languages);
 
   return (
     <QueryClientProvider client={queryClient}>

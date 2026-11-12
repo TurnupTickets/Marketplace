@@ -378,7 +378,8 @@ export function mockQuote(eventId: number, input: QuoteRequest): QuoteResult {
   const rawSubtotal = breakdown.reduce((sum, b) => sum + b.subtotal, 0);
   const quantity = breakdown.reduce((sum, b) => sum + b.quantity, 0);
   const serviceAmount =
-    Math.round(groups.reduce((sum, g) => sum + g.service_amount * g.quantity, 0) * 100) / 100;
+    Math.round(groups.reduce((sum, g) => sum + (g.service_amount ?? 0) * g.quantity, 0) * 100) /
+    100;
 
   let discount: QuoteResult["discount"] = null;
   let discountAmount = 0;

@@ -34,10 +34,13 @@ export type EventTicketGroupSummary = {
   /** Laravel decimal cast serializes as a string, not a number. */
   price: string;
   currency: string;
-  /** Per-ticket service fee (EventService::calculateAdditionalCost); 0 when the event has fees off. */
-  service_amount: number;
-  /** `price + service_amount`, rounded 2dp — what one ticket really costs before discounts. */
-  price_with_service: number;
+  /**
+   * Per-ticket service fee (EventService::calculateAdditionalCost); 0 when the
+   * event has fees off. Optional until every API deployment sends it.
+   */
+  service_amount?: number;
+  /** `price + service_amount`, 2dp — what one ticket really costs before discounts. Optional, as above. */
+  price_with_service?: number;
   available_count: number;
   status: TicketGroupStatus;
 };
@@ -69,8 +72,8 @@ export type EventResource = {
   lng: number | null;
   primary_tag: Tag | null;
   ticket_groups: EventTicketGroupSummary[];
-  /** Empty when the event has additional costs off / none configured. */
-  additional_cost_params: EventAdditionalCostParam[];
+  /** Empty when the event has additional costs off / none configured. Optional until every API deployment sends it. */
+  additional_cost_params?: EventAdditionalCostParam[];
 };
 
 export type HomepageTagSlider = { tag: Tag; events: EventListResource[] };
