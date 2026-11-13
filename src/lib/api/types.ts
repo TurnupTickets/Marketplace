@@ -19,7 +19,10 @@ export type EventListResource = {
   date_from: string;
   date_to: string;
   currency: string;
+  /** API-side `/{tagSlug}/{eventSlug}` pair — data fetching only, never a link. */
   canonical_url: string | null;
+  /** Full public path for the request's language (`/en_ua/events/rock/x`) — the link. */
+  url: string | null;
   cover_url: string | null;
   primary_tag: Tag | null;
 };
@@ -64,7 +67,10 @@ export type EventResource = {
   date_from: string;
   date_to: string;
   currency: string;
+  /** API-side `/{tagSlug}/{eventSlug}` pair — data fetching only, never a link. */
   canonical_url: string | null;
+  /** Full public path for the request's language (`/en_ua/events/rock/x`) — the link. */
+  url: string | null;
   cover_url: string | null;
   gallery_urls: string[];
   /** Null when the event's address was never geocoded in the admin — detail endpoint only, not on the list resource. */
@@ -284,6 +290,7 @@ export type AccountTicketResource = {
     date_from: string | null;
     cover_url: string | null;
     canonical_url: string | null;
+    url: string | null;
   };
 };
 
@@ -377,6 +384,12 @@ export type LanguageResource = {
    */
   domain: string | null;
   path_prefix: string | null;
+  /**
+   * This language's first URL segment for events (`wydarzenia`, `events`,
+   * `podiyi`). Required by the backend (non-empty, `[a-z0-9-]+`); the
+   * backend builds every event's `url` from this same value.
+   */
+  events_path_segment: string;
   name: string;
   flag: string;
   is_default: boolean;

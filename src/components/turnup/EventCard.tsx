@@ -17,7 +17,7 @@ export function EventCard({
   style?: CSSProperties;
   rounded?: string;
 }) {
-  const path = parseEventPath(event.canonical_url);
+  const path = parseEventPath(event.url);
 
   const image = (
     <EventImage
@@ -43,7 +43,7 @@ export function EventCard({
     </div>
   );
 
-  // `canonical_url` can be null (no resolvable tag/event slug pair yet) —
+  // `url` can be null (no resolvable tag/event slug pair yet) —
   // render a non-clickable card rather than a Link to a dead route.
   if (!path) {
     return (

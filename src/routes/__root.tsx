@@ -13,7 +13,12 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { languagesQuery, seoSettingsQuery } from "../lib/api/queries";
 import { splitLocalePrefix } from "../lib/locale";
-import { getRealUrl, setLanguagesCache } from "../lib/locale-runtime";
+import {
+  getLanguagesCache,
+  getRealUrl,
+  LANGUAGES_BOOTSTRAP_GLOBAL,
+  setLanguagesCache,
+} from "../lib/locale-runtime";
 import { createIsomorphicFn } from "@tanstack/react-start";
 import { setResponseHeader } from "@tanstack/react-start/server";
 import { NOT_FOUND_MARKER_HEADER } from "../lib/not-found-marker";
@@ -213,6 +218,13 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="en">
       <head>
         <HeadContent />
+        {/* Before the app bundle: the client router needs the languages to
+            map a localized events segment during hydration (locale-runtime). */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.${LANGUAGES_BOOTSTRAP_GLOBAL}=${JSON.stringify(getLanguagesCache()).replace(/</g, "\\u003c")}`,
+          }}
+        />
         {/* EventImage starts transparent and fades in once hydrated JS sees
             the load — without JS that never happens, so show images as-is. */}
         <noscript>

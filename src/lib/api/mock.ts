@@ -185,6 +185,11 @@ function canonicalUrl(s: EventSeed): string {
   return `/${s.tag.slug}/${s.eventSlug}`;
 }
 
+/** Mock serves the default language only, so no locale prefix. */
+function publicUrl(s: EventSeed): string {
+  return `/wydarzenia${canonicalUrl(s)}`;
+}
+
 function toListResource(s: EventSeed): EventListResource {
   return {
     id: s.id,
@@ -195,6 +200,7 @@ function toListResource(s: EventSeed): EventListResource {
     date_to: s.dateTo,
     currency: "PLN",
     canonical_url: canonicalUrl(s),
+    url: publicUrl(s),
     cover_url: s.cover,
     primary_tag: s.tag,
   };
@@ -273,6 +279,7 @@ function toDetailResource(s: EventSeed): EventResource {
     date_to: s.dateTo,
     currency: "PLN",
     canonical_url: canonicalUrl(s),
+    url: publicUrl(s),
     cover_url: s.cover,
     gallery_urls: [s.cover],
     lat: coords?.lat ?? null,
@@ -651,6 +658,7 @@ function toAccountTicketEvent(s: EventSeed): AccountTicketResource["event"] {
     date_from: s.dateFrom,
     cover_url: s.cover,
     canonical_url: canonicalUrl(s),
+    url: publicUrl(s),
   };
 }
 
@@ -789,6 +797,7 @@ export const mockLanguages: LanguageResource[] = [
     country_code: "pl",
     domain: "turnup-tickets.pl",
     path_prefix: null,
+    events_path_segment: "wydarzenia",
     name: "Polski",
     flag: "🇵🇱",
     is_default: true,
@@ -799,6 +808,7 @@ export const mockLanguages: LanguageResource[] = [
     country_code: "ua",
     domain: "turnup-tickets.eu",
     path_prefix: "/ua_ua",
+    events_path_segment: "podiyi",
     name: "Українська",
     flag: "🇺🇦",
     is_default: false,
@@ -809,6 +819,7 @@ export const mockLanguages: LanguageResource[] = [
     country_code: "en",
     domain: "turnup-tickets.eu",
     path_prefix: null,
+    events_path_segment: "events",
     name: "English",
     flag: "🇬🇧",
     is_default: false,

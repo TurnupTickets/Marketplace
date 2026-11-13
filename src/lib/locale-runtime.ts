@@ -1,7 +1,7 @@
 import { createIsomorphicFn } from "@tanstack/react-start";
 import { getRequestUrl } from "@tanstack/react-start/server";
 import type { LanguageResource } from "@/lib/api/types";
-import { resolveLocale, splitLocalePrefix } from "@/lib/locale";
+import { eventsSegmentFor, resolveLocale, splitLocalePrefix } from "@/lib/locale";
 
 /**
  * The browser-facing URL — `window.location` on the client, the incoming
@@ -26,10 +26,41 @@ export const getRealUrl = createIsomorphicFn()
  * copy is safe on the server too. Refreshed by every `getLanguages()` call —
  * the root route loads languages on each SSR request and client boot.
  */
-let languagesCache: LanguageResource[] = [];
+let languagesCache: LanguageResource[] =
+  typeof window === "undefined" ? [] : (window.__TURNUP_LANGUAGES__ ?? []);
 
 export function setLanguagesCache(languages: LanguageResource[]): void {
   languagesCache = languages;
+}
+
+export function getLanguagesCache(): LanguageResource[] {
+  return languagesCache;
+}
+
+/**
+ * Global name of the inline bootstrap script (see RootShell). The router's
+ * `rewrite.input` runs before any loader, so on the client the cache must
+ * already hold the languages when the bundle starts — otherwise a localized
+ * events URL (`/en_en/events/...`) would not map back to its route during
+ * hydration.
+ */
+export const LANGUAGES_BOOTSTRAP_GLOBAL = "__TURNUP_LANGUAGES__";
+
+declare global {
+  interface Window {
+    __TURNUP_LANGUAGES__?: LanguageResource[];
+  }
+}
+
+/** The visitor's language (from the real URL), or null before languages load. */
+export function getActiveLanguage(): LanguageResource | null {
+  if (languagesCache.length === 0) return null;
+  return resolveLocale({ ...getRealUrl(), languages: languagesCache });
+}
+
+/** First URL segment of the events section for the visitor's language. */
+export function getActiveEventsSegment(): string {
+  return eventsSegmentFor(getActiveLanguage());
 }
 
 /**

@@ -6,7 +6,8 @@ import {
   type LaravelResource,
 } from "./client";
 import { getCartToken } from "../cart-token";
-import { setLanguagesCache } from "../locale-runtime";
+import { parseEventUrl } from "../locale";
+import { getActiveLanguage, setLanguagesCache } from "../locale-runtime";
 import {
   mockAccountOrder,
   mockAccountOrders,
@@ -63,18 +64,14 @@ import type {
 } from "./types";
 
 /**
- * `canonical_url` (`"/{tagSlug}/{eventSlug}"`, or null when the event has no
- * resolvable slug pair yet) is the one source of truth for an event's route —
- * never construct this pair any other way.
+ * Route params for an event link, taken from the backend's public `url`
+ * (full path for the visitor's language; null when the event has no
+ * resolvable tag/event pair). The rendered href is that same `url` — the
+ * router's output rewrite re-adds the language prefix and segment — so
+ * never build an event link from `canonical_url` or by hand.
  */
-export function parseEventPath(
-  canonicalUrl: string | null,
-): { tagSlug: string; eventSlug: string } | null {
-  if (!canonicalUrl) return null;
-  const segments = canonicalUrl.split("/").filter(Boolean);
-  if (segments.length !== 2) return null;
-  const [tagSlug, eventSlug] = segments as [string, string];
-  return { tagSlug, eventSlug };
+export function parseEventPath(url: string | null): { tagSlug: string; eventSlug: string } | null {
+  return parseEventUrl(url, getActiveLanguage());
 }
 
 /**

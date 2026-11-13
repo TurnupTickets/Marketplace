@@ -1,8 +1,13 @@
 import { QueryClient } from "@tanstack/react-query";
 import { createRouter } from "@tanstack/react-router";
 import { routeTree } from "./routeTree.gen";
-import { splitLocalePrefix, withLocalePrefix } from "./lib/locale";
-import { getActivePathPrefix } from "./lib/locale-runtime";
+import {
+  internalizeEventsPath,
+  localizeEventsPath,
+  splitLocalePrefix,
+  withLocalePrefix,
+} from "./lib/locale";
+import { getActiveEventsSegment, getActivePathPrefix } from "./lib/locale-runtime";
 
 export const getRouter = () => {
   const queryClient = new QueryClient();
@@ -20,17 +25,22 @@ export const getRouter = () => {
     // matching, `output` re-adds the visitor's current prefix to every
     // href/navigation, so links keep the language. The root route validates
     // the code (default → redirect, unknown → 404). Composes after basepath.
+    // The events section's first segment is per-language too
+    // (`events_path_segment`): route files keep `/wydarzenia`, `input` maps
+    // the public segment onto it and `output` maps it back. The internal
+    // `/wydarzenia` stays accepted on input, so the router canonicalizes it
+    // to the localized URL.
     rewrite: {
       input: ({ url }) => {
         const { code, rest } = splitLocalePrefix(url.pathname);
-        if (code) url.pathname = rest;
+        url.pathname = internalizeEventsPath(code ? rest : url.pathname, getActiveEventsSegment());
         return url;
       },
       output: ({ url }) => {
-        const prefix = getActivePathPrefix();
-        if (prefix && !splitLocalePrefix(url.pathname).code) {
-          url.pathname = withLocalePrefix(url.pathname, prefix);
-        }
+        const { code, rest } = splitLocalePrefix(url.pathname);
+        const localized = localizeEventsPath(code ? rest : url.pathname, getActiveEventsSegment());
+        const prefix = code ?? getActivePathPrefix();
+        url.pathname = withLocalePrefix(localized, prefix);
         return url;
       },
     },

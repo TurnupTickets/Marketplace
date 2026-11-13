@@ -108,7 +108,7 @@ function EventsList() {
 }
 
 function EventListCard({ event }: { event: EventListResource }) {
-  const path = parseEventPath(event.canonical_url);
+  const path = parseEventPath(event.url);
   if (!path) return null;
   return (
     <Link

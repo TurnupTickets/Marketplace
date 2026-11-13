@@ -92,7 +92,7 @@ export function SearchModal({ open, onClose }: { open: boolean; onClose: () => v
           ) : (
             <ul className="space-y-1">
               {results.map((event) => {
-                const path = parseEventPath(event.canonical_url);
+                const path = parseEventPath(event.url);
                 if (!path) return null;
                 return (
                   <li key={event.id}>
