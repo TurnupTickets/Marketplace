@@ -7,9 +7,9 @@
  * set, the app falls back to local mock data (see ./mock.ts).
  */
 
-import type { SyntheticEvent } from "react";
 import { createIsomorphicFn } from "@tanstack/react-start";
 import { getRequestHeader, getRequestUrl } from "@tanstack/react-start/server";
+import { getRequestLocaleCode } from "@/lib/locale-runtime";
 
 const API_ORIGIN = import.meta.env["VITE_API_URL"] ?? "";
 export const API_ENABLED = API_ORIGIN.length > 0;
@@ -23,16 +23,6 @@ export const API_ENABLED = API_ORIGIN.length > 0;
  * `cover_url`, the second a present-but-broken one.
  */
 export const EVENT_PLACEHOLDER_IMAGE = "/event-placeholder.svg";
-
-/** `<img onError={onEventImageError}>` — covers the present-but-broken-URL
- * half of the gap `resolveMediaUrl` alone can't (a `cover_url` that
- * resolves to a real URL which then 404s). `onerror = null` first so a
- * (theoretically impossible, but not worth risking) broken placeholder
- * can't loop. */
-export function onEventImageError(e: SyntheticEvent<HTMLImageElement>): void {
-  e.currentTarget.onerror = null;
-  e.currentTarget.src = EVENT_PLACEHOLDER_IMAGE;
-}
 
 /**
  * `cover_url`/`gallery_urls` (Spatie Media Library's `getFirstMediaUrl()`)
@@ -162,9 +152,15 @@ async function request<T>(
     }
   }
 
+  // Storefront language for the backend's SetLocale middleware (long code,
+  // e.g. `en_en`). Omitted for the default language and for the language
+  // list itself, which is what the resolution depends on.
+  const localeCode = path === "/languages" ? null : getRequestLocaleCode();
+
   const headers: Record<string, string> = {
     Accept: "application/json",
     ...(body ? { "Content-Type": "application/json" } : {}),
+    ...(localeCode ? { "X-Localization": localeCode } : {}),
     ...getSsrForwardHeaders(),
     ...options.headers,
   };

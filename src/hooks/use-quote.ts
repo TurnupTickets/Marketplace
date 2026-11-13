@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { ApiError } from "@/lib/api/client";
 import { quoteCart } from "@/lib/api/endpoints";
 import type { QuoteRequest } from "@/lib/api/types";
 
@@ -10,6 +11,16 @@ import type { QuoteRequest } from "@/lib/api/types";
  * doesn't fire a request per interaction; only re-queries once `tickets`
  * has at least one positive quantity.
  */
+/**
+ * A 4xx quote (bad discount code, sold out, seats taken) is a deterministic
+ * answer, not a transient failure — retrying it just leaves the UI on
+ * "Liczenie…" for several seconds before the error can be shown.
+ */
+export function retryQuote(failureCount: number, error: unknown): boolean {
+  if (error instanceof ApiError && error.status >= 400 && error.status < 500) return false;
+  return failureCount < 3;
+}
+
 export function useQuote(eventId: number, request: QuoteRequest) {
   const key = JSON.stringify(request);
   const [debounced, setDebounced] = useState(request);
@@ -33,6 +44,7 @@ export function useQuote(eventId: number, request: QuoteRequest) {
     queryFn: () => quoteCart(eventId, debounced),
     enabled: hasTickets,
     placeholderData: keepPreviousData,
+    retry: retryQuote,
   });
 
   return { ...query, isDebouncing, hasTickets };

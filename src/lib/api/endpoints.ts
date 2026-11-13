@@ -6,6 +6,8 @@ import {
   type LaravelResource,
 } from "./client";
 import { getCartToken } from "../cart-token";
+import { parseEventUrl } from "../locale";
+import { getActiveLanguage, setLanguagesCache } from "../locale-runtime";
 import {
   mockAccountOrder,
   mockAccountOrders,
@@ -62,18 +64,14 @@ import type {
 } from "./types";
 
 /**
- * `canonical_url` (`"/{tagSlug}/{eventSlug}"`, or null when the event has no
- * resolvable slug pair yet) is the one source of truth for an event's route —
- * never construct this pair any other way.
+ * Route params for an event link, taken from the backend's public `url`
+ * (full path for the visitor's language; null when the event has no
+ * resolvable tag/event pair). The rendered href is that same `url` — the
+ * router's output rewrite re-adds the language prefix and segment — so
+ * never build an event link from `canonical_url` or by hand.
  */
-export function parseEventPath(
-  canonicalUrl: string | null,
-): { tagSlug: string; eventSlug: string } | null {
-  if (!canonicalUrl) return null;
-  const segments = canonicalUrl.split("/").filter(Boolean);
-  if (segments.length !== 2) return null;
-  const [tagSlug, eventSlug] = segments as [string, string];
-  return { tagSlug, eventSlug };
+export function parseEventPath(url: string | null): { tagSlug: string; eventSlug: string } | null {
+  return parseEventUrl(url, getActiveLanguage());
 }
 
 /**
@@ -246,7 +244,11 @@ export async function logout(): Promise<void> {
   await apiRequest<{ success: boolean }>("/auth/logout", { method: "POST" });
 }
 
-/** Returns `null` on 401 ("not logged in"), not an error surfaced to the user. */
+/**
+ * Returns `null` for a guest. The API answers a guest with 200 `{ data: null }`
+ * (no 401, so nothing is logged in the browser console); a 401 from an older
+ * deployment is still swallowed into `null` rather than surfaced.
+ */
 export async function getCurrentUser(): Promise<UserResource | null> {
   if (!API_ENABLED) return null;
   try {
@@ -365,9 +367,12 @@ export async function lookupRedirect(path: string): Promise<RedirectResource | n
  * ------------------------------------------------------------------------- */
 
 export async function getLanguages(): Promise<LanguageResource[]> {
-  if (!API_ENABLED) return mockLanguages;
-  const res = await apiRequest<LaravelCollection<LanguageResource>>("/languages");
-  return res.data;
+  const languages = API_ENABLED
+    ? (await apiRequest<LaravelCollection<LanguageResource>>("/languages")).data
+    : mockLanguages;
+  // Feeds locale resolution for the router prefix and `X-Localization`.
+  setLanguagesCache(languages);
+  return languages;
 }
 
 export async function getTranslations(): Promise<TranslationsResult> {

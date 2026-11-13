@@ -19,7 +19,10 @@ export type EventListResource = {
   date_from: string;
   date_to: string;
   currency: string;
+  /** API-side `/{tagSlug}/{eventSlug}` pair — data fetching only, never a link. */
   canonical_url: string | null;
+  /** Full public path for the request's language (`/en_ua/events/rock/x`) — the link. */
+  url: string | null;
   cover_url: string | null;
   primary_tag: Tag | null;
 };
@@ -34,8 +37,24 @@ export type EventTicketGroupSummary = {
   /** Laravel decimal cast serializes as a string, not a number. */
   price: string;
   currency: string;
+  /**
+   * Per-ticket service fee (EventService::calculateAdditionalCost); 0 when the
+   * event has fees off. Optional until every API deployment sends it.
+   */
+  service_amount?: number;
+  /** `price + service_amount`, 2dp — what one ticket really costs before discounts. Optional, as above. */
+  price_with_service?: number;
   available_count: number;
   status: TicketGroupStatus;
+};
+
+/** Event-level optional extra (admin "Dodatkowe koszty doliczane do ceny biletu"), priced per ticket. */
+export type EventAdditionalCostParam = {
+  id: string;
+  label: string;
+  price: number;
+  /** Always null today — the admin repeater has no description field yet. */
+  description: string | null;
 };
 
 export type EventResource = {
@@ -48,7 +67,10 @@ export type EventResource = {
   date_from: string;
   date_to: string;
   currency: string;
+  /** API-side `/{tagSlug}/{eventSlug}` pair — data fetching only, never a link. */
   canonical_url: string | null;
+  /** Full public path for the request's language (`/en_ua/events/rock/x`) — the link. */
+  url: string | null;
   cover_url: string | null;
   gallery_urls: string[];
   /** Null when the event's address was never geocoded in the admin — detail endpoint only, not on the list resource. */
@@ -56,6 +78,8 @@ export type EventResource = {
   lng: number | null;
   primary_tag: Tag | null;
   ticket_groups: EventTicketGroupSummary[];
+  /** Empty when the event has additional costs off / none configured. Optional until every API deployment sends it. */
+  additional_cost_params?: EventAdditionalCostParam[];
 };
 
 export type HomepageTagSlider = { tag: Tag; events: EventListResource[] };
@@ -95,7 +119,8 @@ export type QuoteRequest = {
   sms?: 0 | 1;
   delivery?: 0 | 1;
   ticket_as_gift?: 0 | 1;
-  additional_cost_params?: string[];
+  /** `{ "<param_id>": 1 }` — a keyed map (backend reads `array_keys`), same shape as `tickets`. */
+  additional_cost_params?: Record<string, 1>;
 };
 
 export type QuoteTicketGroupBreakdown = {
@@ -110,6 +135,13 @@ export type QuoteTicketGroupBreakdown = {
 export type QuoteResult = {
   currency: string;
   ticket_groups: QuoteTicketGroupBreakdown[];
+  /**
+   * Σ group base subtotals, 2dp. Backend-owned like every amount here: the
+   * parts (tickets_amount + service_amount − discount_amount + additional
+   * costs) sum exactly to `total`, which equals the order's payable amount.
+   * Optional until every API deployment sends it.
+   */
+  tickets_amount?: number;
   subtotal: number;
   discount_amount: number;
   discount: { code: string; info: string } | null;
@@ -258,6 +290,7 @@ export type AccountTicketResource = {
     date_from: string | null;
     cover_url: string | null;
     canonical_url: string | null;
+    url: string | null;
   };
 };
 
@@ -351,6 +384,12 @@ export type LanguageResource = {
    */
   domain: string | null;
   path_prefix: string | null;
+  /**
+   * This language's first URL segment for events (`wydarzenia`, `events`,
+   * `podiyi`). Required by the backend (non-empty, `[a-z0-9-]+`); the
+   * backend builds every event's `url` from this same value.
+   */
+  events_path_segment: string;
   name: string;
   flag: string;
   is_default: boolean;

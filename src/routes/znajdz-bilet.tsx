@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { EventImage } from "@/components/turnup/EventImage";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Check, Loader2, Search, Ticket as TicketIcon } from "lucide-react";
@@ -6,7 +7,7 @@ import { z } from "zod";
 import { PageShell } from "@/components/turnup/PageShell";
 import { activeEventsQuery } from "@/lib/api/queries";
 import { lookupTicket, verifyTicket } from "@/lib/api/endpoints";
-import { ApiError, onEventImageError, resolveMediaUrl } from "@/lib/api/client";
+import { ApiError } from "@/lib/api/client";
 import { formatEventDate } from "@/lib/format-event-date";
 import { TICKET_STATUS, type EventListResource, type OrderDetailResource } from "@/lib/api/types";
 
@@ -343,14 +344,12 @@ function EventDropdown({
                 }}
                 className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-foreground transition-colors hover:bg-secondary"
               >
-                <img
-                  src={resolveMediaUrl(event.cover_url)}
-                  onError={onEventImageError}
+                <EventImage
+                  src={event.cover_url}
                   alt=""
                   width={64}
                   height={64}
-                  loading="lazy"
-                  className="size-10 shrink-0 rounded-lg border border-border object-cover"
+                  className="size-10 shrink-0 rounded-lg border border-border"
                 />
                 <span className="min-w-0">
                   <span className="block truncate text-sm font-semibold text-foreground">

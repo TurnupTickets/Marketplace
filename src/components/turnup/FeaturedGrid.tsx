@@ -33,6 +33,9 @@ function FeaturedGroup({
 }
 
 export function FeaturedGrid({ events }: { events: EventListResource[] }) {
+  // No featured events → no section at all (heading included); an orphan
+  // "Wyróżnione" heading otherwise sits alone under the top bar.
+  if (events.length === 0) return null;
   const [a, b, c, d, e, f = c] = events;
 
   return (

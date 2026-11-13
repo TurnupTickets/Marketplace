@@ -5,6 +5,8 @@ import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { Check, ChevronDown, Loader2 } from "lucide-react";
 import { z } from "zod";
 import { PageShell } from "@/components/turnup/PageShell";
+import { PriceBreakdown } from "@/components/turnup/PriceBreakdown";
+import { retryQuote } from "@/hooks/use-quote";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Command,
@@ -27,6 +29,7 @@ const cartSearchSchema = z.object({
   sms: fallback(z.union([z.literal(0), z.literal(1)]), 0).default(0),
   delivery: fallback(z.union([z.literal(0), z.literal(1)]), 0).default(0),
   ticket_as_gift: fallback(z.union([z.literal(0), z.literal(1)]), 0).default(0),
+  additional_cost_params: fallback(z.record(z.string(), z.literal(1)), {}).default({}),
 });
 
 export const Route = createFileRoute("/wydarzenia/$tagSlug/$eventSlug_/zamowienie")({
@@ -74,7 +77,11 @@ function OrderForm() {
 
   // The selection is fixed once this page loads (set on the event detail
   // page) — a plain query is enough, no debounced re-pricing needed here.
-  const { data: quote, isLoading: quoteLoading } = useQuery({
+  const {
+    data: quote,
+    isLoading: quoteLoading,
+    error: quoteError,
+  } = useQuery({
     queryKey: ["quote", event.id, search],
     queryFn: () =>
       quoteCart(event.id, {
@@ -84,7 +91,9 @@ function OrderForm() {
         sms: search.sms,
         delivery: search.delivery,
         ticket_as_gift: search.ticket_as_gift,
+        additional_cost_params: search.additional_cost_params,
       }),
+    retry: retryQuote,
   });
 
   // Real `CreateOrderRequest` has no dedicated shipping-address block —
@@ -193,6 +202,7 @@ function OrderForm() {
       sms: search.sms,
       delivery: search.delivery,
       ticket_as_gift: search.ticket_as_gift,
+      additional_cost_params: search.additional_cost_params,
       // Backend has one `rodo` consent field — the UI shows separate
       // terms/privacy links (Polish e-commerce convention) but both must
       // be checked before this single combined consent is sent.
@@ -379,7 +389,7 @@ function OrderForm() {
 
             <button
               type="submit"
-              disabled={mutation.isPending || quoteLoading}
+              disabled={mutation.isPending || quoteLoading || Boolean(quoteError)}
               className="gradient-brand flex w-full items-center justify-center gap-2 rounded-full px-6 py-3.5 text-sm font-bold uppercase text-primary-foreground disabled:opacity-50"
             >
               {mutation.isPending && <Loader2 className="size-4 animate-spin" />}
@@ -390,59 +400,15 @@ function OrderForm() {
 
         <aside className="h-fit space-y-4 rounded-3xl border border-border bg-card p-6 lg:sticky lg:top-28">
           <h2 className="font-display text-xl font-bold uppercase">Podsumowanie</h2>
-          {quoteLoading || !quote ? (
+          {quoteError ? (
+            <p className="text-sm font-semibold text-destructive">
+              {getDomainErrorMessage(quoteError) ??
+                "Nie udało się przeliczyć zamówienia. Wróć do wydarzenia i spróbuj ponownie."}
+            </p>
+          ) : quoteLoading || !quote ? (
             <p className="text-sm text-muted-foreground">Liczenie…</p>
           ) : (
-            <>
-              <ul className="space-y-2 divide-y divide-border text-sm">
-                {quote.ticket_groups.map((group) => (
-                  <li
-                    key={group.ticket_group_id}
-                    className="flex items-center justify-between py-2"
-                  >
-                    <span>
-                      {group.name} × {group.quantity}
-                    </span>
-                    <span className="font-semibold">{group.subtotal.toFixed(2)} PLN</span>
-                  </li>
-                ))}
-                {quote.additional_costs.sms > 0 && (
-                  <li className="flex items-center justify-between py-2">
-                    <span>Bilet SMS</span>
-                    <span className="font-semibold">
-                      +{quote.additional_costs.sms.toFixed(2)} PLN
-                    </span>
-                  </li>
-                )}
-                {quote.additional_costs.delivery > 0 && (
-                  <li className="flex items-center justify-between py-2">
-                    <span>Bilet kolekcjonerski z wysyłką</span>
-                    <span className="font-semibold">
-                      +{quote.additional_costs.delivery.toFixed(2)} PLN
-                    </span>
-                  </li>
-                )}
-                {quote.additional_costs.gift > 0 && (
-                  <li className="flex items-center justify-between py-2">
-                    <span>Bilet prezentowy</span>
-                    <span className="font-semibold">
-                      +{quote.additional_costs.gift.toFixed(2)} PLN
-                    </span>
-                  </li>
-                )}
-              </ul>
-              {quote.discount && (
-                <p className="text-xs font-semibold text-primary">
-                  Zastosowano rabat — {quote.discount.info}
-                </p>
-              )}
-              <div className="flex items-center justify-between border-t border-border pt-4">
-                <span className="text-xs uppercase tracking-widest text-muted-foreground">
-                  Razem
-                </span>
-                <span className="font-display text-xl font-bold">{quote.total.toFixed(2)} PLN</span>
-              </div>
-            </>
+            <PriceBreakdown quote={quote} />
           )}
         </aside>
       </div>

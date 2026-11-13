@@ -2,6 +2,7 @@ import "./lib/error-capture";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
+import { NOT_FOUND_MARKER_HEADER } from "./lib/not-found-marker";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -48,6 +49,31 @@ async function proxySitemap(request: Request): Promise<Response | null> {
   }
 }
 
+/** See src/lib/not-found-marker.ts. */
+function applyNotFoundMarker(response: Response): Response {
+  if (response.headers.get(NOT_FOUND_MARKER_HEADER) !== "1") return response;
+  const headers = new Headers(response.headers);
+  headers.delete(NOT_FOUND_MARKER_HEADER);
+  return new Response(response.body, { status: 404, statusText: "Not Found", headers });
+}
+
+/**
+ * The router's `rewrite.input` (localized events segment) runs before the
+ * root loader fetches languages, so a cold isolate must have them first.
+ * Later requests reuse the module cache, which every root load refreshes.
+ * Failures fall through: the app then serves the internal `/wydarzenia`.
+ */
+async function ensureLanguagesLoaded(): Promise<void> {
+  const { getLanguagesCache } = await import("./lib/locale-runtime");
+  if (getLanguagesCache().length > 0) return;
+  try {
+    const { getLanguages } = await import("./lib/api/endpoints");
+    await getLanguages();
+  } catch (error) {
+    console.error("languages preload failed", error);
+  }
+}
+
 let serverEntryPromise: Promise<ServerEntry> | undefined;
 
 async function getServerEntry(): Promise<ServerEntry> {
@@ -91,9 +117,10 @@ export default {
       const sitemap = await proxySitemap(request);
       if (sitemap) return sitemap;
 
+      await ensureLanguagesLoaded();
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
-      return await normalizeCatastrophicSsrResponse(response);
+      return await normalizeCatastrophicSsrResponse(applyNotFoundMarker(response));
     } catch (error) {
       console.error(error);
       return new Response(renderErrorPage(), {

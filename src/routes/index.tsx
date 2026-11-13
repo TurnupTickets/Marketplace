@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { FeaturedGrid } from "@/components/turnup/FeaturedGrid";
 import { PromoRow, type UpcomingEvent } from "@/components/turnup/PromoRow";
@@ -57,6 +57,8 @@ function Home() {
   // Only fetch tickets once logged in — /account/tickets 401s otherwise.
   const { data: tickets } = useQuery({ ...accountTicketsQuery(), enabled: Boolean(user) });
   const upcoming = selectUpcomingEvents(tickets?.data ?? []);
+  const sliders = homepage.tag_sliders.filter((slider) => slider.events.length > 0);
+  const isEmpty = homepage.featured.length === 0 && sliders.length === 0;
 
   return (
     <div className="min-h-screen bg-background">
@@ -69,11 +71,27 @@ function Home() {
           <PromoRow upcoming={upcoming} isLoggedIn={Boolean(user)} />
         </Reveal>
 
-        {homepage.tag_sliders.map((slider) => (
+        {sliders.map((slider) => (
           <Reveal key={slider.tag.id}>
             <SectionRow slider={slider} />
           </Reveal>
         ))}
+
+        {isEmpty && (
+          <section className="mx-4 flex flex-col items-center gap-4 rounded-3xl border border-border bg-card px-6 py-12 text-center md:mx-6">
+            <h2 className="font-display text-xl font-bold uppercase">Wkrótce nowe wydarzenia</h2>
+            <p className="max-w-md text-sm text-muted-foreground">
+              Właśnie przygotowujemy kolejne wydarzenia. Zajrzyj do pełnej listy albo wróć niedługo.
+            </p>
+            <Link
+              to="/wydarzenia"
+              search={{ page: 1, q: "" }}
+              className="gradient-brand inline-flex rounded-full px-6 py-3 text-sm font-bold uppercase text-primary-foreground"
+            >
+              Przeglądaj wydarzenia
+            </Link>
+          </section>
+        )}
       </main>
 
       <SiteFooter />
