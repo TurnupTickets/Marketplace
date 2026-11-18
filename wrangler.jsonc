@@ -25,10 +25,9 @@
   "observability": {
     "enabled": true,
   },
-  // Enable after the workers.dev deploy is verified and the old GH Pages
-  // CNAME for this host is removed from Cloudflare DNS (see
-  // context/deployment/deploy-plan.md, cutover step).
-  // "routes": [
-  //   { "pattern": "marketplace.turnup-tickets.pl", "custom_domain": true },
-  // ],
+  // Custom domain: Cloudflare owns the DNS record + cert for this host.
+  // Keep it here so every Workers Builds deploy re-asserts it.
+  "routes": [
+    { "pattern": "marketplace.turnup-tickets.pl", "custom_domain": true },
+  ],
 }
