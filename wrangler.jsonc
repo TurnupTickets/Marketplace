@@ -6,7 +6,14 @@
 // React SSR per request would routinely exceed 10 ms CPU on Free (error 1102).
 // Moving to SSR = Workers Paid + nitro build instead of GH_PAGES_BUILD.
 //
-// Build first: GH_PAGES_BUILD=true npx vite build  (produces dist/client).
+// Two Workers, one per environment, each with its own Workers Builds config:
+//   production: Worker `turnup-marketplace`,      branch main, `wrangler deploy`
+//   beta:       Worker `turnup-marketplace-beta`, branch dev,  `wrangler deploy --env beta`
+// `vars` and `routes` are not inherited by environments, so each block sets its own.
+//
+// Build first (produces dist/client; backend URL comes from .env.<mode>):
+//   production: GH_PAGES_BUILD=true npx vite build
+//   beta:       GH_PAGES_BUILD=true npx vite build --mode beta && node scripts/mark-noindex.mjs
 {
   "name": "turnup-marketplace",
   "main": "worker/index.ts",
@@ -18,16 +25,33 @@
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/sitemap.xml"],
   },
-  // Backend bare origin (same value as VITE_API_URL in the build command).
-  "vars": {
-    "API_ORIGIN": "https://turnup-tickets.pl/new-cms",
-  },
   "observability": {
     "enabled": true,
   },
-  // Custom domain: Cloudflare owns the DNS record + cert for this host.
-  // Keep it here so every Workers Builds deploy re-asserts it.
-  "routes": [
-    { "pattern": "marketplace.turnup-tickets.pl", "custom_domain": true },
-  ],
+
+  // --- production ---
+  // Backend bare origin; keep in sync with VITE_API_URL in .env.production.
+  "vars": {
+    "API_ORIGIN": "https://panel.turnup-tickets.pl",
+  },
+  // No custom domain yet: marketplace.turnup-tickets.pl moved to beta.
+  // Production domains (turnup-tickets.pl/.eu/.net) get attached in a
+  // separate cutover; until then production is reachable on workers.dev.
+  "workers_dev": true,
+
+  "env": {
+    // --- beta (branch dev) ---
+    "beta": {
+      // Backend bare origin; keep in sync with VITE_API_URL in .env.beta.
+      "vars": {
+        "API_ORIGIN": "https://turnup-tickets.pl/new-cms",
+      },
+      "workers_dev": false,
+      // Custom domain: Cloudflare owns the DNS record + cert for this host.
+      // Keep it here so every Workers Builds deploy re-asserts it.
+      "routes": [
+        { "pattern": "marketplace.turnup-tickets.pl", "custom_domain": true },
+      ],
+    },
+  },
 }
