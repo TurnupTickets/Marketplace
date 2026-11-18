@@ -4,7 +4,7 @@
 // `run_worker_first` invoke the Worker (and count toward the Free plan's
 // 100k req/day + 10 ms CPU limits). Full SSR is deliberately NOT used here:
 // React SSR per request would routinely exceed 10 ms CPU on Free (error 1102).
-// Moving to SSR = Workers Paid + nitro build instead of GH_PAGES_BUILD.
+// Moving to SSR = Workers Paid + `SSR_BUILD=true vite build` (nitro, .output/).
 //
 // Two Workers, one per environment, each with its own Workers Builds config:
 //   production: Worker `turnup-marketplace`,      branch main, `wrangler deploy`
@@ -12,8 +12,8 @@
 // `vars` and `routes` are not inherited by environments, so each block sets its own.
 //
 // Build first (produces dist/client; backend URL comes from .env.<mode>):
-//   production: GH_PAGES_BUILD=true npx vite build
-//   beta:       GH_PAGES_BUILD=true npx vite build --mode beta && node scripts/mark-noindex.mjs
+//   production: npx vite build
+//   beta:       npx vite build --mode beta && node scripts/mark-noindex.mjs
 {
   "name": "turnup-marketplace",
   "main": "worker/index.ts",
