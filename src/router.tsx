@@ -17,8 +17,7 @@ export const getRouter = () => {
     context: { queryClient },
     scrollRestoration: true,
     defaultPreloadStaleTime: 0,
-    // GH Pages serves this app from /<repo>/ instead of /; base is baked in at build
-    // time via BASE_URL (set from GH_PAGES_BASE) so the app works both there and at "/".
+    // Follows Vite's `base` (BASE_URL, "/" by default) so a subpath deploy keeps working.
     basepath: import.meta.env.BASE_URL,
     // Same-domain languages live under `/<code>/...` (e.g. `/en_en/wydarzenia`).
     // Route files stay prefix-free: `input` strips the segment before

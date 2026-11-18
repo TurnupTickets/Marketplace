@@ -7,18 +7,16 @@ import { nitro } from "nitro/vite";
 import { defineConfig, loadEnv, type PluginOption, type UserConfig } from "vite";
 import tsConfigPaths from "vite-tsconfig-paths";
 
-// Static SPA build (Cloudflare Workers Static Assets): no server, so SPA mode
-// + prerendered shell, nitro off. Two independent signals, deliberately not
-// one: GH_PAGES_BUILD turns on SPA/prerender/no-nitro; GH_PAGES_BASE is only
-// for a /<subpath>/ layout, and is optional. Collapsing these into one flag
-// (GH_PAGES_BASE's mere presence) previously meant dropping the subpath also
-// silently dropped SPA mode itself, breaking the build. The GH_PAGES_ name is
-// historical — the Workers Builds build commands set it.
-const isStaticBuild = process.env["GH_PAGES_BUILD"] === "true";
-const ghPagesBase = process.env["GH_PAGES_BASE"];
+// Default build = static SPA (Cloudflare Workers Static Assets): SPA mode +
+// prerendered shell, no nitro/SSR server. Output: dist/client.
+// SSR_BUILD=true switches to the SSR build (nitro cloudflare-module, output
+// .output/) — needs Workers Paid; React SSR exceeds the Free plan's CPU limit.
+// `vite dev` is unaffected (always the SSR dev server, as before).
+const isSsrBuild = process.env["SSR_BUILD"] === "true";
 
 export default defineConfig(({ command, mode }) => {
   const isDevBuild = command === "build" && mode === "development";
+  const isStaticBuild = command === "build" && !isSsrBuild;
 
   // Inline VITE_* (from .env files and process.env) as static defines, so
   // bracket access like import.meta.env["VITE_API_URL"] is replaced too.
@@ -56,9 +54,7 @@ export default defineConfig(({ command, mode }) => {
         : {}),
     }),
     // SSR server build (Cloudflare module Worker); skipped for the static build.
-    ...(command === "build" && !isStaticBuild
-      ? [nitro({ defaultPreset: "cloudflare-module" })]
-      : []),
+    ...(command === "build" && isSsrBuild ? [nitro({ defaultPreset: "cloudflare-module" })] : []),
     viteReact(),
   ];
 
@@ -89,7 +85,6 @@ export default defineConfig(({ command, mode }) => {
     server: { host: "::", port: 8080 },
     plugins,
   };
-  if (ghPagesBase) config.base = `/${ghPagesBase}/`;
   if (isDevBuild) {
     // `vite build --mode development` (npm run build:dev): unminified-ish
     // debugging build with React dev warnings and readable function names.
