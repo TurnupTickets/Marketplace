@@ -1,0 +1,34 @@
+// Cloudflare Workers deploy (Free plan): static SPA assets + a tiny Worker.
+//
+// Static asset requests are free and unmetered on Workers; only paths in
+// `run_worker_first` invoke the Worker (and count toward the Free plan's
+// 100k req/day + 10 ms CPU limits). Full SSR is deliberately NOT used here:
+// React SSR per request would routinely exceed 10 ms CPU on Free (error 1102).
+// Moving to SSR = Workers Paid + nitro build instead of GH_PAGES_BUILD.
+//
+// Build first: GH_PAGES_BUILD=true npx vite build  (produces dist/client).
+{
+  "name": "turnup-marketplace",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./dist/client",
+    "binding": "ASSETS",
+    // Unknown paths (client-side routes like /wydarzenia/...) get index.html.
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/sitemap.xml"],
+  },
+  // Backend bare origin (same value as VITE_API_URL in the build command).
+  "vars": {
+    "API_ORIGIN": "https://turnup-tickets.pl/new-cms",
+  },
+  "observability": {
+    "enabled": true,
+  },
+  // Enable after the workers.dev deploy is verified and the old GH Pages
+  // CNAME for this host is removed from Cloudflare DNS (see
+  // context/deployment/deploy-plan.md, cutover step).
+  // "routes": [
+  //   { "pattern": "marketplace.turnup-tickets.pl", "custom_domain": true },
+  // ],
+}
