@@ -42,12 +42,15 @@ export function resolveMediaUrl(path: string | null | undefined): string {
 export class ApiError extends Error {
   status: number;
   payload: unknown;
+  /** Diagnostics for logs: `cf-ray`/`server` headers and a non-JSON body's start. */
+  detail: string | undefined;
 
-  constructor(status: number, message: string, payload?: unknown) {
+  constructor(status: number, message: string, payload?: unknown, detail?: string) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.payload = payload;
+    this.detail = detail;
   }
 }
 
@@ -181,12 +184,20 @@ async function request<T>(
 
   if (!response.ok) {
     let payload: unknown = null;
+    const text = await response.text().catch(() => "");
     try {
-      payload = await response.json();
+      payload = text ? JSON.parse(text) : null;
     } catch {
-      /* empty body */
+      /* not JSON (proxy / WAF / server error page) */
     }
-    throw new ApiError(response.status, `Request failed: ${response.status}`, payload);
+    const detail = [
+      `server=${response.headers.get("server") ?? "-"}`,
+      `cf-ray=${response.headers.get("cf-ray") ?? "-"}`,
+      payload === null && text ? `body=${text.replace(/\s+/g, " ").slice(0, 300)}` : null,
+    ]
+      .filter(Boolean)
+      .join(" ");
+    throw new ApiError(response.status, `Request failed: ${response.status}`, payload, detail);
   }
 
   if (response.status === 204) return undefined as T;

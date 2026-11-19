@@ -70,7 +70,9 @@ async function ensureLanguagesLoaded(): Promise<void> {
     const { getLanguages } = await import("./lib/api/endpoints");
     await getLanguages();
   } catch (error) {
-    console.error("languages preload failed", error);
+    // `detail` / `payload`: what the backend (or a proxy in front of it) answered.
+    const { detail, payload } = (error ?? {}) as { detail?: string; payload?: unknown };
+    console.error("languages preload failed", error, detail ?? "", JSON.stringify(payload ?? null));
   }
 }
 
