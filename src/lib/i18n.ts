@@ -1,4 +1,4 @@
-import { getTranslations } from "@/lib/api/endpoints";
+import { getLanguages, getTranslations } from "@/lib/api/endpoints";
 import type { LanguageResource } from "@/lib/api/types";
 import {
   parseStoredTranslations,
@@ -7,7 +7,8 @@ import {
   type StoredTranslations,
   type TranslateOptions,
 } from "@/lib/i18n-store";
-import { getActiveLanguage } from "@/lib/locale-runtime";
+import { bcp47For } from "@/lib/locale";
+import { getActiveLanguage, getLanguagesCache } from "@/lib/locale-runtime";
 
 export { STOREFRONT_GROUP } from "@/lib/i18n-store";
 
@@ -144,3 +145,24 @@ export function getActiveTranslationsSnapshot(): StoredTranslations | null {
   const locale = getActiveLanguage()?.code;
   return locale ? store.get(locale) : null;
 }
+
+/**
+ * Client boot: the visitor's bundle must be in memory before the first
+ * render. The root `beforeLoad` does not cover this in the static SPA build —
+ * its one prerendered shell (`/`, default language) carries the root match
+ * as already loaded, so the client never re-runs it and a `/ua_ua/...` visit
+ * would render Polish keys. Top-level await holds the entry module (and so
+ * hydration) until the bundle is here. With SSR the inline bootstrap is
+ * already fresh and this returns at once.
+ */
+async function bootClientTranslations(): Promise<void> {
+  if (getLanguagesCache().length === 0) {
+    await getLanguages().catch((error) => console.error("[i18n] languages failed", error));
+  }
+  const lang = getActiveLanguage();
+  // The prerendered shell's <html lang> is the default language's.
+  document.documentElement.lang = bcp47For(lang);
+  await loadTranslations(lang);
+}
+
+if (isBrowser) await bootClientTranslations();
