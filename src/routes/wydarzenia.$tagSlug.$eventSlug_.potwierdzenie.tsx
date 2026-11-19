@@ -6,6 +6,7 @@ import { z } from "zod";
 import { PageShell } from "@/components/turnup/PageShell";
 import { getOrderStatus } from "@/lib/api/endpoints";
 import type { PaymentStatus } from "@/lib/api/types";
+import { t } from "@/lib/i18n";
 
 const searchSchema = z.object({
   code: fallback(z.string(), "").default(""),
@@ -23,12 +24,12 @@ export const Route = createFileRoute("/wydarzenia/$tagSlug/$eventSlug_/potwierdz
     }
   },
   head: () => ({
-    meta: [{ title: "Status zamówienia — turnup" }, { name: "robots", content: "noindex" }],
+    meta: [{ title: t("Status zamówienia — turnup") }, { name: "robots", content: "noindex" }],
   }),
   component: Confirmation,
 });
 
-/** `App\Enums\Statuses\PaymentStatus`: -1 CANCELLED, 0 PENDING, 1 PAID_MANUAL, 2 PAID — no "refunded" case exists. */
+/** `App\Enums\Statuses\PaymentStatus`: -1 CANCELLED, 0 PENDING, 1 PAID_MANUAL, 2 PAID — no "refunded" case exists. Copy strings are i18n keys. */
 const STATUS_COPY: Record<
   PaymentStatus,
   { icon: React.ReactNode; title: string; description: string }
@@ -71,16 +72,18 @@ function Confirmation() {
     <PageShell>
       <div className="mx-auto max-w-lg space-y-6 py-16 text-center">
         {isLoading || !copy ? (
-          <p className="text-sm text-muted-foreground">Sprawdzamy status zamówienia…</p>
+          <p className="text-sm text-muted-foreground">{t("Sprawdzamy status zamówienia…")}</p>
         ) : (
           <>
             <div className="gradient-brand mx-auto flex size-16 items-center justify-center rounded-full">
               {copy.icon}
             </div>
-            <h1 className="font-display text-2xl font-bold uppercase md:text-3xl">{copy.title}</h1>
-            <p className="text-sm text-muted-foreground">{copy.description}</p>
+            <h1 className="font-display text-2xl font-bold uppercase md:text-3xl">
+              {t(copy.title)}
+            </h1>
+            <p className="text-sm text-muted-foreground">{t(copy.description)}</p>
             <p className="text-sm text-muted-foreground">
-              Numer zamówienia: <span className="font-semibold text-foreground">{code}</span>
+              {t("Numer zamówienia:")} <span className="font-semibold text-foreground">{code}</span>
             </p>
           </>
         )}
@@ -89,7 +92,7 @@ function Confirmation() {
           params={{ tagSlug, eventSlug }}
           className="inline-block text-xs font-bold uppercase tracking-wide text-primary hover:underline"
         >
-          Wróć do wydarzenia
+          {t("Wróć do wydarzenia")}
         </Link>
       </div>
     </PageShell>

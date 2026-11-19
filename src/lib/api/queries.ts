@@ -13,7 +13,6 @@ import {
   getPages,
   getSeatMap,
   getSeoSettings,
-  getTranslations,
   listEvents,
   lookupRedirect,
 } from "./endpoints";
@@ -63,9 +62,6 @@ export const staticPageQuery = (slug: string) =>
 
 export const languagesQuery = () =>
   queryOptions({ queryKey: ["languages"], queryFn: getLanguages });
-
-export const translationsQuery = () =>
-  queryOptions({ queryKey: ["translations"], queryFn: getTranslations });
 
 export const seoSettingsQuery = () =>
   queryOptions({ queryKey: ["seo-settings"], queryFn: getSeoSettings });

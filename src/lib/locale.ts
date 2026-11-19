@@ -62,6 +62,19 @@ export function resolveLocale({
 }
 
 /**
+ * BCP 47 tag for `<html lang>` and `Intl` formatting. The CMS `lang_code`
+ * is its own short code, not always ISO 639-1: Ukrainian is `ua`, the
+ * language tag is `uk`. No language known → Polish, the default storefront.
+ */
+const BCP47_OVERRIDES: Record<string, string> = { ua: "uk" };
+
+export function bcp47For(lang: LanguageResource | null | undefined): string {
+  const code = lang?.lang_code?.toLowerCase();
+  if (!code) return "pl";
+  return BCP47_OVERRIDES[code] ?? code;
+}
+
+/**
  * Events URL segment. Every language's public segment comes from the
  * backend (`events_path_segment`, required there). `INTERNAL_EVENTS_SEGMENT`
  * is not a fallback value for a language — it is the route files' own name

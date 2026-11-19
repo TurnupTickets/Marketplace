@@ -826,12 +826,30 @@ export const mockLanguages: LanguageResource[] = [
   },
 ];
 
-export const mockTranslations: TranslationsResult = {
-  locale: "pl_pl",
-  translations: {
-    common: { search: "Szukaj", login: "Zaloguj się", logout: "Wyloguj się" },
+/**
+ * Same shape as `GET /translations?groups=Strona - Storefront`: group →
+ * Polish source key (entity-encoded, as the CMS stores it) → text in `locale`.
+ */
+const mockTranslationBundles: Record<string, TranslationsResult["translations"]> = {
+  en_en: {
+    "Strona - Storefront": {
+      "Zaloguj się": "Log in",
+      "Wkr&oacute;tce nowe wydarzenia": "New events coming soon",
+      "Do zapłaty": "To pay",
+    },
+  },
+  ua_ua: {
+    "Strona - Storefront": {
+      "Zaloguj się": "Увійти",
+      "Wkr&oacute;tce nowe wydarzenia": "Незабаром нові події",
+      "Do zapłaty": "До сплати",
+    },
   },
 };
+
+export function mockTranslations(localeCode: string): TranslationsResult {
+  return { locale: localeCode, translations: mockTranslationBundles[localeCode] ?? {} };
+}
 
 export const mockSeoSettings: SeoSettingResource = {
   locale: "pl_pl",

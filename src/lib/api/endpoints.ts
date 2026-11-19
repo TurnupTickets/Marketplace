@@ -6,6 +6,7 @@ import {
   type LaravelResource,
 } from "./client";
 import { getCartToken } from "../cart-token";
+import { STOREFRONT_GROUP } from "../i18n-store";
 import { parseEventUrl } from "../locale";
 import { getActiveLanguage, setLanguagesCache } from "../locale-runtime";
 import {
@@ -375,9 +376,20 @@ export async function getLanguages(): Promise<LanguageResource[]> {
   return languages;
 }
 
-export async function getTranslations(): Promise<TranslationsResult> {
-  if (!API_ENABLED) return mockTranslations;
-  return apiRequest<TranslationsResult>("/translations");
+/**
+ * Static UI strings for one language (`localeCode`, long code), sent as an
+ * explicit `X-Localization` so any language can be fetched, not just the
+ * visitor's. Only the storefront group: the full bundle also carries every
+ * admin-panel group (~130 KB), and every key the storefront uses is seeded
+ * into this one (TurnupCms StorefrontTranslationsSeeder). Use through
+ * `loadTranslations` (src/lib/i18n.ts), which caches.
+ */
+export async function getTranslations(localeCode: string): Promise<TranslationsResult> {
+  if (!API_ENABLED) return mockTranslations(localeCode);
+  return apiRequest<TranslationsResult>("/translations", {
+    query: { groups: STOREFRONT_GROUP },
+    headers: { "X-Localization": localeCode },
+  });
 }
 
 export async function getSeoSettings(): Promise<SeoSettingResource> {

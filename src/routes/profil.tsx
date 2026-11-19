@@ -14,18 +14,23 @@ import {
   type UpdateProfileRequest,
   type UserResource,
 } from "@/lib/api/types";
+import { t } from "@/lib/i18n";
 
 export const Route = createFileRoute("/profil")({
   head: () => ({
     meta: [
-      { title: "Mój profil — bilety i zamówienia | turnup" },
+      { title: t("Mój profil — bilety i zamówienia | turnup") },
       {
         name: "description",
-        content:
+        content: t(
           "Panel użytkownika turnup: nadchodzące wydarzenia, historia zamówień i dane konta.",
+        ),
       },
-      { property: "og:title", content: "Mój profil — turnup" },
-      { property: "og:description", content: "Zarządzaj biletami, zamówieniami i danymi konta." },
+      { property: "og:title", content: t("Mój profil — turnup") },
+      {
+        property: "og:description",
+        content: t("Zarządzaj biletami, zamówieniami i danymi konta."),
+      },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -36,7 +41,7 @@ export const Route = createFileRoute("/profil")({
   component: ProfilePage,
 });
 
-/** `App\Enums\Statuses\PaymentStatus`: -1 CANCELLED, 0 PENDING, 1 PAID_MANUAL, 2 PAID. */
+/** `App\Enums\Statuses\PaymentStatus`: -1 CANCELLED, 0 PENDING, 1 PAID_MANUAL, 2 PAID. Values (here and below) are i18n keys. */
 const ORDER_STATUS_LABEL: Record<PaymentStatus, string> = {
   [-1]: "Anulowane",
   0: "Oczekuje na płatność",
@@ -112,7 +117,7 @@ function ProfilePage() {
                 }
                 className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
               >
-                {item.icon} {item.label}
+                {item.icon} {t(item.label)}
               </button>
             ))}
           </nav>
@@ -121,22 +126,26 @@ function ProfilePage() {
             onClick={handleLogout}
             className="flex w-full items-center justify-center gap-2 rounded-full border border-border px-4 py-3 text-xs font-bold uppercase text-muted-foreground transition-colors hover:text-foreground"
           >
-            <LogOut className="size-4" /> Wyloguj się
+            <LogOut className="size-4" /> {t("Wyloguj się")}
           </button>
         </aside>
 
         <div className="min-w-0 space-y-8">
           <section id="zamowienia" className="scroll-mt-28 space-y-4">
-            <h1 className="font-display text-2xl font-bold uppercase md:text-3xl">Zamówienia</h1>
+            <h1 className="font-display text-2xl font-bold uppercase md:text-3xl">
+              {t("Zamówienia")}
+            </h1>
             {orders.data.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nie masz jeszcze żadnych zamówień.</p>
+              <p className="text-sm text-muted-foreground">
+                {t("Nie masz jeszcze żadnych zamówień.")}
+              </p>
             ) : (
               <ul className="divide-y divide-border rounded-3xl border border-border bg-card px-6">
                 {orders.data.map((order) => (
                   <li key={order.id} className="flex items-center gap-4 py-4">
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-display text-sm font-bold uppercase">
-                        {order.event_name ?? "Wydarzenie"}
+                        {order.event_name ?? t("Wydarzenie")}
                       </p>
                       <p className="truncate text-xs text-muted-foreground">
                         {order.payment_code ?? `#${order.id}`} · {order.total.toFixed(2)}{" "}
@@ -150,7 +159,7 @@ function ProfilePage() {
                           : "bg-secondary text-muted-foreground"
                       }`}
                     >
-                      {ORDER_STATUS_LABEL[order.status]}
+                      {t(ORDER_STATUS_LABEL[order.status])}
                     </span>
                   </li>
                 ))}
@@ -159,16 +168,18 @@ function ProfilePage() {
           </section>
 
           <section id="bilety" className="scroll-mt-28 space-y-4">
-            <h2 className="font-display text-xl font-bold uppercase">Moje bilety</h2>
+            <h2 className="font-display text-xl font-bold uppercase">{t("Moje bilety")}</h2>
             {tickets.data.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nie masz jeszcze żadnych biletów.</p>
+              <p className="text-sm text-muted-foreground">
+                {t("Nie masz jeszcze żadnych biletów.")}
+              </p>
             ) : (
               <ul className="divide-y divide-border rounded-3xl border border-border bg-card px-6">
                 {tickets.data.map((ticket) => (
                   <li key={ticket.id} className="flex items-center gap-4 py-4">
                     <img
                       src={`data:image/png;base64,${ticket.qr_code}`}
-                      alt="Kod QR biletu"
+                      alt={t("Kod QR biletu")}
                       width={48}
                       height={48}
                       loading="lazy"
@@ -189,7 +200,7 @@ function ProfilePage() {
                           : "bg-secondary text-muted-foreground"
                       }`}
                     >
-                      {TICKET_STATUS_LABEL[ticket.status as TicketStatus] ?? "—"}
+                      {t(TICKET_STATUS_LABEL[ticket.status as TicketStatus] ?? "—")}
                     </span>
                   </li>
                 ))}
@@ -198,7 +209,7 @@ function ProfilePage() {
           </section>
 
           <section id="ustawienia" className="scroll-mt-28 space-y-4">
-            <h2 className="font-display text-xl font-bold uppercase">Ustawienia konta</h2>
+            <h2 className="font-display text-xl font-bold uppercase">{t("Ustawienia konta")}</h2>
             <div className="grid min-w-0 gap-6 lg:grid-cols-2">
               <ProfileEditForm user={user} queryClient={queryClient} />
               <PasswordChangeForm />
@@ -264,28 +275,28 @@ function ProfileEditForm({
       onSubmit={onSubmit}
       className="min-w-0 space-y-4 rounded-3xl border border-border bg-card p-6"
     >
-      <p className="font-display text-sm font-bold uppercase">Dane konta</p>
+      <p className="font-display text-sm font-bold uppercase">{t("Dane konta")}</p>
       <SettingsField
-        label="Imię"
+        label={t("Imię")}
         value={fields.first_name}
         onChange={(v) => update("first_name", v)}
         error={fieldErrors["first_name"]}
       />
       <SettingsField
-        label="Nazwisko"
+        label={t("Nazwisko")}
         value={fields.last_name}
         onChange={(v) => update("last_name", v)}
         error={fieldErrors["last_name"]}
       />
       <SettingsField
-        label="Telefon"
+        label={t("Telefon")}
         value={fields.phone}
         onChange={(v) => update("phone", v)}
         error={fieldErrors["phone"]}
       />
       <label className="block min-w-0 space-y-1.5">
         <span className="text-[0.65rem] uppercase tracking-widest text-muted-foreground">
-          E-mail
+          {t("E-mail")}
         </span>
         <input
           type="email"
@@ -294,8 +305,9 @@ function ProfileEditForm({
           className="w-full rounded-xl border border-border bg-secondary px-3 py-2.5 text-sm text-muted-foreground outline-none disabled:cursor-not-allowed"
         />
         <span className="block text-xs text-muted-foreground">
-          Zmiana adresu e-mail jest obecnie niedostępna — wymaga procesu potwierdzenia, którego
-          backend jeszcze nie udostępnia.
+          {t(
+            "Zmiana adresu e-mail jest obecnie niedostępna — wymaga procesu potwierdzenia, którego backend jeszcze nie udostępnia.",
+          )}
         </span>
       </label>
       <div className="flex items-center gap-3">
@@ -304,9 +316,9 @@ function ProfileEditForm({
           disabled={mutation.isPending}
           className="rounded-full bg-primary px-5 py-2.5 text-xs font-bold uppercase text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
         >
-          {mutation.isPending ? "Zapisywanie…" : "Zapisz zmiany"}
+          {mutation.isPending ? t("Zapisywanie…") : t("Zapisz zmiany")}
         </button>
-        {saved && <span className="text-xs font-semibold text-primary">Zapisano</span>}
+        {saved && <span className="text-xs font-semibold text-primary">{t("Zapisano")}</span>}
       </div>
     </form>
   );
@@ -339,7 +351,7 @@ function PasswordChangeForm() {
         (err.payload as { error?: { code?: string } } | undefined)?.error?.code ===
           "INVALID_CURRENT_PASSWORD"
       ) {
-        setFieldErrors({ current_password: "Nieprawidłowe obecne hasło." });
+        setFieldErrors({ current_password: t("Nieprawidłowe obecne hasło.") });
         setFormError(null);
         return;
       }
@@ -349,7 +361,7 @@ function PasswordChangeForm() {
         setFormError(null);
       } else {
         setFieldErrors({});
-        setFormError("Nie udało się zmienić hasła. Spróbuj ponownie.");
+        setFormError(t("Nie udało się zmienić hasła. Spróbuj ponownie."));
       }
     },
   });
@@ -365,9 +377,9 @@ function PasswordChangeForm() {
       onSubmit={onSubmit}
       className="min-w-0 space-y-4 rounded-3xl border border-border bg-card p-6"
     >
-      <p className="font-display text-sm font-bold uppercase">Zmiana hasła</p>
+      <p className="font-display text-sm font-bold uppercase">{t("Zmiana hasła")}</p>
       <SettingsField
-        label="Obecne hasło"
+        label={t("Obecne hasło")}
         type="password"
         value={currentPassword}
         onChange={(v) => {
@@ -377,7 +389,7 @@ function PasswordChangeForm() {
         error={fieldErrors["current_password"]}
       />
       <SettingsField
-        label="Nowe hasło"
+        label={t("Nowe hasło")}
         type="password"
         value={newPassword}
         onChange={(v) => {
@@ -393,9 +405,11 @@ function PasswordChangeForm() {
           disabled={mutation.isPending}
           className="rounded-full bg-primary px-5 py-2.5 text-xs font-bold uppercase text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
         >
-          {mutation.isPending ? "Zapisywanie…" : "Zmień hasło"}
+          {mutation.isPending ? t("Zapisywanie…") : t("Zmień hasło")}
         </button>
-        {success && <span className="text-xs font-semibold text-primary">Hasło zmienione</span>}
+        {success && (
+          <span className="text-xs font-semibold text-primary">{t("Hasło zmienione")}</span>
+        )}
       </div>
     </form>
   );

@@ -9,6 +9,7 @@ import { parseEventPath } from "@/lib/api/endpoints";
 import { eventsPageQuery } from "@/lib/api/queries";
 import { formatEventDate } from "@/lib/format-event-date";
 import type { EventListResource } from "@/lib/api/types";
+import { t } from "@/lib/i18n";
 
 const searchSchema = z.object({
   page: fallback(z.number().int(), 1).default(1),
@@ -29,16 +30,17 @@ export const Route = createFileRoute("/wydarzenia/")({
   },
   head: () => ({
     meta: [
-      { title: "Wydarzenia — koncerty, festiwale i teatr | turnup" },
+      { title: t("Wydarzenia — koncerty, festiwale i teatr | turnup") },
       {
         name: "description",
-        content:
+        content: t(
           "Pełna lista wydarzeń w turnup: koncerty, festiwale, teatr i imprezy klubowe. Filtruj, przeglądaj strony i kup bilet online.",
+        ),
       },
-      { property: "og:title", content: "Wydarzenia — turnup" },
+      { property: "og:title", content: t("Wydarzenia — turnup") },
       {
         property: "og:description",
-        content: "Przeglądaj wszystkie wydarzenia i kup bilet w kilka sekund.",
+        content: t("Przeglądaj wszystkie wydarzenia i kup bilet w kilka sekund."),
       },
     ],
   }),
@@ -53,9 +55,11 @@ function EventsList() {
 
   return (
     <PageShell
-      eyebrow="Wydarzenia"
-      title={q ? `Wyniki: ${q}` : "Wszystkie wydarzenia"}
-      lead={`Znaleziono ${total} wydarzeń. Strona ${current_page} z ${last_page}.`}
+      eyebrow={t("Wydarzenia")}
+      title={q ? t("Wyniki: %s", { params: [q] }) : t("Wszystkie wydarzenia")}
+      lead={t("Znaleziono %s wydarzeń. Strona %s z %s.", {
+        params: [total, current_page, last_page],
+      })}
     >
       {tag && (
         <Link
@@ -74,7 +78,13 @@ function EventsList() {
       </div>
 
       <nav className="mt-10 flex items-center justify-center gap-2">
-        <PageLink page={safePage - 1} q={q} tag={tag} disabled={safePage <= 1} label="Poprzednia">
+        <PageLink
+          page={safePage - 1}
+          q={q}
+          tag={tag}
+          disabled={safePage <= 1}
+          label={t("Poprzednia")}
+        >
           <ChevronLeft className="size-4" />
         </PageLink>
 
@@ -98,7 +108,7 @@ function EventsList() {
           q={q}
           tag={tag}
           disabled={safePage >= last_page}
-          label="Następna"
+          label={t("Następna")}
         >
           <ChevronRight className="size-4" />
         </PageLink>

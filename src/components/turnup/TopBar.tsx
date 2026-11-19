@@ -8,6 +8,8 @@ import type { MenuItem } from "@/lib/api/types";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { Logo } from "./Logo";
 import { SearchModal } from "./SearchModal";
+import { StackedText } from "./StackedText";
+import { t } from "@/lib/i18n";
 
 function MainNavLink({ item }: { item: MenuItem }) {
   const resolved = resolveMenuLink(item);
@@ -82,18 +84,18 @@ export function TopBar() {
           {user ? (
             <Link
               to="/profil"
-              aria-label="Profil"
+              aria-label={t("Profil")}
               className="flex items-center rounded-full p-1 transition-opacity hover:opacity-70"
             >
               <User className="size-5 md:size-6" strokeWidth={1.5} />
               <span className="hidden text-xs font-semibold uppercase tracking-wide md:ml-1.5 md:inline">
-                Profil
+                {t("Profil")}
               </span>
             </Link>
           ) : (
             <Link
               to="/logowanie"
-              aria-label="Zaloguj się"
+              aria-label={t("Zaloguj się")}
               className="rounded-full p-1 transition-opacity hover:opacity-70"
             >
               <LogIn className="size-5 md:size-6" strokeWidth={1.5} />
@@ -127,9 +129,7 @@ function SearchCluster({ className = "", onSearch }: { className?: string; onSea
         className="gradient-brand-soft flex min-w-0 flex-1 items-center justify-between gap-2 rounded-full px-4 py-2.5 text-left md:w-56 md:flex-none md:gap-3 md:px-5"
       >
         <span className="text-xs font-semibold leading-tight text-primary-foreground md:text-sm">
-          znajdź
-          <br />
-          wydarzenie
+          <StackedText text={t("znajdź wydarzenie")} />
         </span>
         <Search className="size-4 shrink-0 text-primary-foreground md:size-5" strokeWidth={2.5} />
       </button>
@@ -138,10 +138,9 @@ function SearchCluster({ className = "", onSearch }: { className?: string; onSea
         to="/znajdz-bilet"
         className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-full bg-white px-4 py-2.5 text-left md:w-56 md:flex-none md:gap-3 md:px-5"
       >
-        <span className="gradient-brand bg-clip-text text-xs font-semibold leading-tight text-transparent md:text-sm">
-          wyszukaj
-          <br />
-          swój bilet
+        <span className="gradient-brand bg-clip-text text-xs font-semibold lowercase leading-tight text-transparent md:text-sm">
+          {/* Same key as the find-ticket page title; lowercase is this button's look. */}
+          <StackedText text={t("Wyszukaj swój bilet")} />
         </span>
         <Ticket
           className="size-4 shrink-0 -rotate-12 md:size-5"

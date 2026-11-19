@@ -7,19 +7,20 @@ import { PageShell } from "@/components/turnup/PageShell";
 import { ApiError } from "@/lib/api/client";
 import { login, register } from "@/lib/api/endpoints";
 import { currentUserQuery } from "@/lib/api/queries";
+import { t } from "@/lib/i18n";
 
 export const Route = createFileRoute("/logowanie")({
   head: () => ({
     meta: [
-      { title: "Logowanie i rejestracja — turnup" },
+      { title: t("Logowanie i rejestracja — turnup") },
       {
         name: "description",
-        content: "Zaloguj się do turnup lub załóż konto, aby zarządzać swoimi biletami.",
+        content: t("Zaloguj się do turnup lub załóż konto, aby zarządzać swoimi biletami."),
       },
-      { property: "og:title", content: "Logowanie i rejestracja — turnup" },
+      { property: "og:title", content: t("Logowanie i rejestracja — turnup") },
       {
         property: "og:description",
-        content: "Konto turnup: bilety, zamówienia i nadchodzące wydarzenia.",
+        content: t("Konto turnup: bilety, zamówienia i nadchodzące wydarzenia."),
       },
     ],
   }),
@@ -35,6 +36,7 @@ export const Route = createFileRoute("/logowanie")({
 
 type Mode = "login" | "register";
 
+// Messages are i18n keys, translated where shown — never t() at module scope.
 const emailSchema = z.string().trim().email({ message: "Podaj poprawny adres e-mail" }).max(255);
 const passwordSchema = z.string().min(8, { message: "Hasło musi mieć min. 8 znaków" }).max(72);
 const nameSchema = z.string().trim().min(2, { message: "Podaj imię i nazwisko" }).max(100);
@@ -59,14 +61,16 @@ function AuthPage() {
       <div className="mx-auto grid max-w-5xl items-start gap-8 py-10 lg:grid-cols-[1fr_420px]">
         <div className="hidden flex-col justify-between rounded-3xl border border-border bg-card p-10 lg:flex">
           <div>
-            <p className="section-chip">Twoje konto</p>
+            <p className="section-chip">{t("Twoje konto")}</p>
             <h1 className="mt-6 font-display text-4xl font-bold uppercase leading-tight">
-              Wszystkie bilety
-              <br />w jednym miejscu
+              {t("Wszystkie bilety")}
+              <br />
+              {t("w jednym miejscu")}
             </h1>
             <p className="mt-4 max-w-sm text-sm text-muted-foreground">
-              Zaloguj się, aby zobaczyć nadchodzące wydarzenia, pobrać bilety i zarządzać
-              zamówieniami.
+              {t(
+                "Zaloguj się, aby zobaczyć nadchodzące wydarzenia, pobrać bilety i zarządzać zamówieniami.",
+              )}
             </p>
           </div>
           <ul className="space-y-3 text-sm text-muted-foreground">
@@ -74,9 +78,9 @@ function AuthPage() {
               "Bilety zawsze pod ręką",
               "Szybszy checkout",
               "Powiadomienia o starcie sprzedaży",
-            ].map((t) => (
-              <li key={t} className="flex items-center gap-3">
-                <Check className="size-4 text-primary" /> {t}
+            ].map((perk) => (
+              <li key={perk} className="flex items-center gap-3">
+                <Check className="size-4 text-primary" /> {t(perk)}
               </li>
             ))}
           </ul>
@@ -92,7 +96,7 @@ function AuthPage() {
                   mode === m ? "gradient-brand text-primary-foreground" : "text-muted-foreground"
                 }`}
               >
-                {m === "login" ? "Logowanie" : "Rejestracja"}
+                {m === "login" ? t("Logowanie") : t("Rejestracja")}
               </button>
             ))}
           </div>
@@ -167,7 +171,7 @@ function LoginForm() {
     const parsed = z
       .object({ email: emailSchema, password: passwordSchema })
       .safeParse({ email, password });
-    if (!parsed.success) return setError(parsed.error.issues[0]?.message ?? "Błąd danych");
+    if (!parsed.success) return setError(t(parsed.error.issues[0]?.message ?? "Błąd danych"));
     setError(null);
     setLoading(true);
     try {
@@ -177,8 +181,8 @@ function LoginForm() {
     } catch (err) {
       setError(
         isInvalidCredentials(err)
-          ? "Nieprawidłowy e-mail lub hasło."
-          : "Nie udało się zalogować. Spróbuj ponownie.",
+          ? t("Nieprawidłowy e-mail lub hasło.")
+          : t("Nie udało się zalogować. Spróbuj ponownie."),
       );
     } finally {
       setLoading(false);
@@ -188,21 +192,21 @@ function LoginForm() {
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       <Field
-        label="E-mail"
+        label={t("E-mail")}
         type="email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         required
       />
       <Field
-        label="Hasło"
+        label={t("Hasło")}
         type="password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
         required
       />
       <ErrorText error={error} />
-      <Submit loading={loading}>Zaloguj się</Submit>
+      <Submit loading={loading}>{t("Zaloguj się")}</Submit>
     </form>
   );
 }
@@ -219,7 +223,7 @@ function RegisterForm() {
     const parsed = z
       .object({ name: nameSchema, email: emailSchema, password: passwordSchema })
       .safeParse(form);
-    if (!parsed.success) return setError(parsed.error.issues[0]?.message ?? "Błąd danych");
+    if (!parsed.success) return setError(t(parsed.error.issues[0]?.message ?? "Błąd danych"));
     setError(null);
     setLoading(true);
     // Backend wants first_name/last_name, not a single "name" field — split
@@ -236,7 +240,7 @@ function RegisterForm() {
       await queryClient.invalidateQueries({ queryKey: ["me"] });
       await navigate({ to: "/profil" });
     } catch {
-      setError("Nie udało się utworzyć konta.");
+      setError(t("Nie udało się utworzyć konta."));
     } finally {
       setLoading(false);
     }
@@ -245,43 +249,43 @@ function RegisterForm() {
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       <Field
-        label="Imię i nazwisko"
+        label={t("Imię i nazwisko")}
         value={form.name}
         onChange={(e) => setForm({ ...form, name: e.target.value })}
         required
       />
       <Field
-        label="E-mail"
+        label={t("E-mail")}
         type="email"
         value={form.email}
         onChange={(e) => setForm({ ...form, email: e.target.value })}
         required
       />
       <Field
-        label="Hasło"
+        label={t("Hasło")}
         type="password"
         value={form.password}
         onChange={(e) => setForm({ ...form, password: e.target.value })}
         required
       />
       <ErrorText error={error} />
-      <Submit loading={loading}>Załóż konto</Submit>
+      <Submit loading={loading}>{t("Załóż konto")}</Submit>
       <p className="text-[0.65rem] leading-relaxed text-muted-foreground">
-        Rejestrując się akceptujesz{" "}
+        {t("Rejestrując się akceptujesz")}{" "}
         <Link
           to="/strona/$slug"
           params={{ slug: "regulamin" }}
           className="text-primary hover:underline"
         >
-          regulamin
+          {t("regulamin")}
         </Link>{" "}
-        oraz{" "}
+        {t("oraz")}{" "}
         <Link
           to="/strona/$slug"
           params={{ slug: "polityka-prywatnosci" }}
           className="text-primary hover:underline"
         >
-          politykę prywatności
+          {t("politykę prywatności")}
         </Link>
         .
       </p>

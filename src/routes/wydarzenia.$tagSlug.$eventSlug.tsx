@@ -23,6 +23,7 @@ import { formatPrice } from "@/lib/format-price";
 import { discountEffect } from "@/lib/price-breakdown";
 import { TICKET_GROUP_STATUS } from "@/lib/api/types";
 import type { EventTicketGroupSummary, SeatSelection, TicketSelection } from "@/lib/api/types";
+import { t } from "@/lib/i18n";
 
 // Deferred as a lazy import (not a static one) so leaflet's module-level side
 // effects — CSS import, default-icon prototype patch — never execute during
@@ -64,13 +65,15 @@ export const Route = createFileRoute("/wydarzenia/$tagSlug/$eventSlug")({
     if (!loaderData) {
       return {
         meta: [
-          { title: "Wydarzenie niedostępne — turnup" },
+          { title: t("Wydarzenie niedostępne — turnup") },
           { name: "robots", content: "noindex" },
         ],
       };
     }
     const title = `${loaderData.name} — ${loaderData.city} | turnup`;
-    const description = `Kup bilet na ${loaderData.name} w ${loaderData.city}. Wybierz pulę biletową i zapłać online.`;
+    const description = t("Kup bilet na %s w %s. Wybierz pulę biletową i zapłać online.", {
+      params: [loaderData.name, loaderData.city],
+    });
     return {
       meta: [
         { title },
@@ -217,7 +220,7 @@ function EventDetail() {
     if (!appliedDiscountCode || !quoteErrored) return;
     const code = getDomainErrorCode(quoteRawError);
     if (code == null || !DISCOUNT_ERROR_CODES.has(code)) return;
-    setDiscountError(getDomainErrorMessage(quoteRawError) ?? "Nieprawidłowy kod rabatowy");
+    setDiscountError(getDomainErrorMessage(quoteRawError) ?? t("Nieprawidłowy kod rabatowy"));
     setAppliedDiscountCode("");
   }, [appliedDiscountCode, quoteErrored, quoteRawError]);
   // Any other quote failure (sold out, seat conflict, ...) — never show a
@@ -262,7 +265,7 @@ function EventDetail() {
           <div className="grid gap-6 lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)] lg:items-start">
             <EventImage
               src={event.cover_url}
-              alt={`${event.name} — plakat wydarzenia`}
+              alt={`${event.name} — ${t("plakat wydarzenia")}`}
               width={1080}
               height={1440}
               loading="eager"
@@ -270,7 +273,7 @@ function EventDetail() {
             />
 
             <div className="space-y-4 rounded-3xl border border-border bg-card p-6 md:p-8">
-              <h2 className="font-display text-xl font-bold uppercase">O wydarzeniu</h2>
+              <h2 className="font-display text-xl font-bold uppercase">{t("O wydarzeniu")}</h2>
               {event.description && (
                 // WYSIWYG HTML from the CMS (same as strona.$slug.tsx's page
                 // body) — was rendered as a plain-text child before, so
@@ -283,16 +286,20 @@ function EventDetail() {
               )}
 
               <dl className="grid gap-4 pt-2 sm:grid-cols-3">
-                <Info icon={<MapPin className="size-4" />} label="Miejsce" value={event.place} />
+                <Info
+                  icon={<MapPin className="size-4" />}
+                  label={t("Miejsce")}
+                  value={event.place}
+                />
                 <Info
                   icon={<CalendarDays className="size-4" />}
-                  label="Termin"
+                  label={t("Termin")}
                   value={formatEventDateTime(event.date_from)}
                 />
                 <Info
                   icon={<ShieldCheck className="size-4" />}
-                  label="Bilety"
-                  value="Elektroniczne, wysyłane na e-mail"
+                  label={t("Bilety")}
+                  value={t("Elektroniczne, wysyłane na e-mail")}
                 />
               </dl>
 
@@ -312,7 +319,7 @@ function EventDetail() {
         {/* RIGHT: ticket groups */}
         <aside className="h-fit space-y-4 rounded-3xl border border-border bg-card p-6 lg:sticky lg:top-28">
           <div>
-            <h2 className="font-display text-xl font-bold uppercase">Wybierz bilety</h2>
+            <h2 className="font-display text-xl font-bold uppercase">{t("Wybierz bilety")}</h2>
             <p className="mt-1 text-xs uppercase tracking-widest text-muted-foreground">
               {event.name} · {event.city}
             </p>
@@ -324,7 +331,7 @@ function EventDetail() {
               onClick={() => setDiscountOpen((v) => !v)}
               className="gradient-brand flex w-full items-center justify-between px-5 py-3 text-left text-sm font-bold uppercase text-primary-foreground"
             >
-              Masz kod rabatowy? Kliknij
+              {t("Masz kod rabatowy? Kliknij")}
               <ChevronDown
                 className={`size-4 shrink-0 transition-transform ${discountOpen ? "rotate-180" : ""}`}
               />
@@ -340,7 +347,7 @@ function EventDetail() {
                       setAppliedDiscountCode("");
                       setDiscountError(null);
                     }}
-                    placeholder="Wpisz kod rabatowy"
+                    placeholder={t("Wpisz kod rabatowy")}
                     className="min-w-0 flex-1 rounded-xl border border-border bg-background px-3 py-2 text-sm"
                   />
                   <button
@@ -349,20 +356,22 @@ function EventDetail() {
                     disabled={!discountCode.trim() || totalCount === 0}
                     className="rounded-xl bg-primary px-4 py-2 text-xs font-bold uppercase text-primary-foreground disabled:opacity-40"
                   >
-                    Zastosuj
+                    {t("Zastosuj")}
                   </button>
                 </div>
                 {totalCount === 0 && (
-                  <p className="text-xs text-muted-foreground">Wybierz najpierw liczbę biletów.</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t("Wybierz najpierw liczbę biletów.")}
+                  </p>
                 )}
                 {discountState === "not-applicable" && (
                   <p className="text-xs text-muted-foreground">
-                    Ten kod nie dotyczy wybranych biletów.
+                    {t("Ten kod nie dotyczy wybranych biletów.")}
                   </p>
                 )}
                 {discountState === "applied" && (
                   <p className="text-xs font-semibold text-primary">
-                    Zastosowano rabat — {quote?.discount?.info}
+                    {t("Zastosowano rabat — %s", { params: [quote?.discount?.info ?? ""] })}
                   </p>
                 )}
                 {discountError && <p className="text-xs text-destructive">{discountError}</p>}
@@ -393,28 +402,35 @@ function EventDetail() {
               className="flex w-full items-center justify-center gap-2 rounded-2xl border border-border px-4 py-3 text-sm font-bold uppercase text-foreground transition-colors hover:border-primary"
             >
               {totalSelectedSeats > 0
-                ? `Wybrano ${totalSelectedSeats} ${totalSelectedSeats === 1 ? "miejsce" : "miejsc"} — zmień`
-                : "Wybierz miejsca na planie sali"}
+                ? t(
+                    totalSelectedSeats === 1
+                      ? "Wybrano %s miejsce — zmień"
+                      : "Wybrano %s miejsc — zmień",
+                    {
+                      params: [totalSelectedSeats],
+                    },
+                  )
+                : t("Wybierz miejsca na planie sali")}
             </button>
           )}
 
           <ul className="space-y-3 border-t border-border pt-4">
             <AddonRow
-              label="Chcę otrzymać również bilet SMS"
+              label={t("Chcę otrzymać również bilet SMS")}
               checked={sms}
               onToggle={() => setSms((v) => !v)}
               price={quotePending ? undefined : quote?.additional_costs.sms}
               currency={quote?.currency ?? event.currency}
             />
             <AddonRow
-              label="Zamawiam kolekcjonerski bilet z wysyłką"
+              label={t("Zamawiam kolekcjonerski bilet z wysyłką")}
               checked={delivery}
               onToggle={() => setDelivery((v) => !v)}
               price={quotePending ? undefined : quote?.additional_costs.delivery}
               currency={quote?.currency ?? event.currency}
             />
             <AddonRow
-              label="Zamawiam specjalny bilet prezentowy"
+              label={t("Zamawiam specjalny bilet prezentowy")}
               checked={giftTicket}
               onToggle={() => setGiftTicket((v) => !v)}
               price={quotePending ? undefined : quote?.additional_costs.gift}
@@ -426,7 +442,7 @@ function EventDetail() {
               <AddonRow
                 key={param.id}
                 label={param.label}
-                hint={`${formatPrice(param.price, event.currency)} / bilet`}
+                hint={`${formatPrice(param.price, event.currency)} / ${t("bilet")}`}
                 checked={costParamIds.includes(param.id)}
                 onToggle={() =>
                   setCostParamIds((prev) =>
@@ -445,18 +461,18 @@ function EventDetail() {
             {totalCount === 0 ? (
               <div className="flex items-center justify-between">
                 <span className="text-xs uppercase tracking-widest text-muted-foreground">
-                  0 biletów
+                  {t("0 biletów")}
                 </span>
                 <span className="font-display text-xl font-bold">
                   {formatPrice(0, event.currency)}
                 </span>
               </div>
             ) : quotePending ? (
-              <p className="text-right text-sm text-muted-foreground">Liczenie…</p>
+              <p className="text-right text-sm text-muted-foreground">{t("Liczenie…")}</p>
             ) : quoteBlocked || !quote ? (
               <p className="text-sm font-semibold text-destructive">
                 {getDomainErrorMessage(quoteRawError) ??
-                  "Nie udało się przeliczyć ceny. Spróbuj ponownie."}
+                  t("Nie udało się przeliczyć ceny. Spróbuj ponownie.")}
               </p>
             ) : (
               <PriceBreakdown quote={quote} showTicketLines={false} />
@@ -468,7 +484,7 @@ function EventDetail() {
               aria-disabled
               className="gradient-brand-soft block w-full rounded-full px-6 py-4 text-center text-sm font-bold uppercase text-primary-foreground opacity-40"
             >
-              Przejdź do płatności
+              {t("Przejdź do płatności")}
             </span>
           ) : (
             <Link
@@ -485,7 +501,7 @@ function EventDetail() {
               }}
               className="gradient-brand-soft block w-full rounded-full px-6 py-4 text-center text-sm font-bold uppercase text-primary-foreground"
             >
-              Przejdź do płatności
+              {t("Przejdź do płatności")}
             </Link>
           )}
 
@@ -493,7 +509,7 @@ function EventDetail() {
             to="/znajdz-bilet"
             className="block text-center text-xs uppercase tracking-wide text-muted-foreground hover:text-foreground"
           >
-            Masz już bilet? Znajdź go
+            {t("Masz już bilet? Znajdź go")}
           </Link>
         </aside>
       </div>
@@ -502,7 +518,7 @@ function EventDetail() {
         <Dialog open={seatModalOpen} onOpenChange={setSeatModalOpen}>
           <DialogContent className="max-h-[85vh] max-w-4xl overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Wybierz miejsca</DialogTitle>
+              <DialogTitle>{t("Wybierz miejsca")}</DialogTitle>
               <DialogDescription>
                 {event.name} · {event.city}
               </DialogDescription>
@@ -518,21 +534,21 @@ function EventDetail() {
             <DialogFooter className="items-center gap-3 sm:justify-between">
               <span className="text-sm text-muted-foreground sm:mr-auto">
                 {draftSelectedSeats}{" "}
-                {draftSelectedSeats === 1 ? "zaznaczone miejsce" : "zaznaczonych miejsc"}
+                {draftSelectedSeats === 1 ? t("zaznaczone miejsce") : t("zaznaczonych miejsc")}
               </span>
               <button
                 type="button"
                 onClick={() => setSeatModalOpen(false)}
                 className="rounded-full border border-border px-6 py-2.5 text-sm font-bold uppercase text-foreground transition-colors hover:border-primary"
               >
-                Anuluj
+                {t("Anuluj")}
               </button>
               <button
                 type="button"
                 onClick={confirmSeats}
                 className="gradient-brand rounded-full px-6 py-2.5 text-sm font-bold uppercase text-primary-foreground"
               >
-                Zatwierdź
+                {t("Zatwierdź")}
               </button>
             </DialogFooter>
           </DialogContent>
@@ -566,27 +582,31 @@ function GroupRow({
         </p>
         {(group.service_amount ?? 0) > 0 && (
           <p className="text-[0.65rem] uppercase tracking-wide text-muted-foreground">
-            w tym opłata serwisowa {formatPrice(group.service_amount ?? 0, group.currency)}
+            {t("w tym opłata serwisowa %s", {
+              params: [formatPrice(group.service_amount ?? 0, group.currency)],
+            })}
           </p>
         )}
         {soldOut && (
-          <p className="text-[0.65rem] uppercase tracking-wide text-destructive">Wyprzedane</p>
+          <p className="text-[0.65rem] uppercase tracking-wide text-destructive">
+            {t("Wyprzedane")}
+          </p>
         )}
         {seated && (
           <p className="text-[0.65rem] uppercase tracking-wide text-muted-foreground">
-            Wybierz miejsca na planie sali poniżej
+            {t("Wybierz miejsca na planie sali poniżej")}
           </p>
         )}
       </div>
 
       {seated ? (
         <span className="flex h-fit items-center font-display text-sm font-bold">
-          {count} {count === 1 ? "miejsce" : "miejsc"}
+          {t(count === 1 ? "%s miejsce" : "%s miejsc", { params: [count] })}
         </span>
       ) : (
         <div className="flex h-fit items-center gap-2">
           <button
-            aria-label={`Usuń ${group.name}`}
+            aria-label={t("Usuń %s", { params: [group.name] })}
             onClick={() => onChange(-1)}
             disabled={count === 0}
             className="flex size-8 items-center justify-center rounded-full bg-secondary text-foreground transition-colors hover:bg-muted disabled:opacity-40"
@@ -595,7 +615,7 @@ function GroupRow({
           </button>
           <span className="w-6 text-center font-display text-sm font-bold">{count}</span>
           <button
-            aria-label={`Dodaj ${group.name}`}
+            aria-label={t("Dodaj %s", { params: [group.name] })}
             onClick={() => onChange(1)}
             disabled={soldOut || count >= group.available_count}
             className="gradient-brand flex size-8 items-center justify-center rounded-full text-primary-foreground disabled:opacity-40"

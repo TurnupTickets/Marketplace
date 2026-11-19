@@ -10,27 +10,29 @@ import { lookupTicket, verifyTicket } from "@/lib/api/endpoints";
 import { ApiError } from "@/lib/api/client";
 import { formatEventDate } from "@/lib/format-event-date";
 import { TICKET_STATUS, type EventListResource, type OrderDetailResource } from "@/lib/api/types";
+import { t } from "@/lib/i18n";
 
 export const Route = createFileRoute("/znajdz-bilet")({
   head: () => ({
     meta: [
-      { title: "Znajdź swój bilet — turnup" },
+      { title: t("Znajdź swój bilet — turnup") },
       {
         name: "description",
-        content:
+        content: t(
           "Nie masz biletu w skrzynce? Wybierz wydarzenie, podaj numer zamówienia i potwierdź kodem SMS, aby pobrać bilety.",
+        ),
       },
-      { property: "og:title", content: "Znajdź swój bilet — turnup" },
+      { property: "og:title", content: t("Znajdź swój bilet — turnup") },
       {
         property: "og:description",
-        content: "Odzyskaj bilety w dwóch krokach: numer zamówienia i kod SMS.",
+        content: t("Odzyskaj bilety w dwóch krokach: numer zamówienia i kod SMS."),
       },
     ],
   }),
   component: FindTicketPage,
 });
 
-/** `App\Enums\Statuses\TicketStatus`: int-backed enum, serializes as its integer value, not a string. */
+/** `App\Enums\Statuses\TicketStatus`: int-backed enum, serializes as its integer value, not a string. Values are i18n keys. */
 const TICKET_STATUS_LABEL: Record<number, string> = {
   [TICKET_STATUS.CANCELLED]: "Anulowany",
   [TICKET_STATUS.ACTIVE]: "Ważny",
@@ -60,7 +62,7 @@ function StepsBar({ current, labels }: { current: number; labels: string[] }) {
                 active ? "text-foreground" : "text-muted-foreground"
               }`}
             >
-              {label}
+              {t(label)}
             </span>
           </li>
         );
@@ -73,6 +75,7 @@ function StepsBar({ current, labels }: { current: number; labels: string[] }) {
 const orderNumberSchema = z
   .string()
   .trim()
+  // Messages are i18n keys, translated where shown.
   .min(1, { message: "Podaj numer zamówienia" })
   .regex(/^\d+$/, { message: "Numer zamówienia to sama liczba" })
   .max(20)
@@ -91,9 +94,9 @@ function FindTicketPage() {
 
   async function submitLookup(e: React.FormEvent) {
     e.preventDefault();
-    if (!event) return setError("Wybierz wydarzenie z listy");
+    if (!event) return setError(t("Wybierz wydarzenie z listy"));
     const parsed = orderNumberSchema.safeParse(orderNumberInput);
-    if (!parsed.success) return setError(parsed.error.issues[0]?.message ?? "Błąd danych");
+    if (!parsed.success) return setError(t(parsed.error.issues[0]?.message ?? "Błąd danych"));
     setError(null);
     setLoading(true);
     try {
@@ -106,9 +109,9 @@ function FindTicketPage() {
       // exists — see the guide) except for the 429 rate-limit, which needs
       // its own copy so the user doesn't just retry into the same wall.
       if (err instanceof ApiError && err.status === 429) {
-        setError("Zbyt wiele prób. Spróbuj ponownie za kilka minut.");
+        setError(t("Zbyt wiele prób. Spróbuj ponownie za kilka minut."));
       } else {
-        setError("Nie znaleźliśmy zamówienia dla tego wydarzenia.");
+        setError(t("Nie znaleźliśmy zamówienia dla tego wydarzenia."));
       }
     } finally {
       setLoading(false);
@@ -119,7 +122,7 @@ function FindTicketPage() {
     e.preventDefault();
     if (!event || orderNumber === null) return;
     const parsed = z.string().trim().min(4, { message: "Podaj kod z SMS" }).max(10).safeParse(code);
-    if (!parsed.success) return setError(parsed.error.issues[0]?.message ?? "Błąd danych");
+    if (!parsed.success) return setError(t(parsed.error.issues[0]?.message ?? "Błąd danych"));
     setError(null);
     setLoading(true);
     try {
@@ -132,9 +135,9 @@ function FindTicketPage() {
       setStep(3);
     } catch (err) {
       if (err instanceof ApiError && err.status === 429) {
-        setError("Zbyt wiele prób. Spróbuj ponownie za kilka minut.");
+        setError(t("Zbyt wiele prób. Spróbuj ponownie za kilka minut."));
       } else {
-        setError("Kod jest nieprawidłowy lub wygasł.");
+        setError(t("Kod jest nieprawidłowy lub wygasł."));
       }
     } finally {
       setLoading(false);
@@ -143,9 +146,11 @@ function FindTicketPage() {
 
   return (
     <PageShell
-      eyebrow="Bilety"
-      title="Wyszukaj swój bilet"
-      lead="Wybierz wydarzenie i podaj numer zamówienia. Potwierdzimy Twoją tożsamość kodem SMS, a następnie pokażemy wszystkie bilety przypisane do zamówienia."
+      eyebrow={t("Bilety")}
+      title={t("Wyszukaj swój bilet")}
+      lead={t(
+        "Wybierz wydarzenie i podaj numer zamówienia. Potwierdzimy Twoją tożsamość kodem SMS, a następnie pokażemy wszystkie bilety przypisane do zamówienia.",
+      )}
     >
       <div className="mx-auto max-w-2xl space-y-6 pb-10">
         <StepsBar current={step} labels={["Zamówienie", "Kod SMS", "Twoje bilety"]} />
@@ -159,13 +164,13 @@ function FindTicketPage() {
 
             <label className="block space-y-1.5">
               <span className="text-[0.65rem] font-bold uppercase tracking-widest text-muted-foreground">
-                Numer zamówienia
+                {t("Numer zamówienia")}
               </span>
               <input
                 value={orderNumberInput}
                 onChange={(e) => setOrderNumberInput(e.target.value)}
                 inputMode="numeric"
-                placeholder="np. 4512"
+                placeholder={t("np. 4512")}
                 className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-primary"
               />
             </label>
@@ -177,7 +182,7 @@ function FindTicketPage() {
               disabled={loading}
               className="gradient-brand flex w-full items-center justify-center gap-2 rounded-full px-6 py-3.5 text-sm font-bold uppercase text-primary-foreground disabled:opacity-50"
             >
-              {loading && <Loader2 className="size-4 animate-spin" />} Wyślij
+              {loading && <Loader2 className="size-4 animate-spin" />} {t("Wyślij")}
             </button>
           </form>
         )}
@@ -188,12 +193,13 @@ function FindTicketPage() {
             className="space-y-5 rounded-3xl border border-border bg-card p-6 md:p-8"
           >
             <p className="text-sm text-muted-foreground">
-              Wysłaliśmy kod SMS na numer {phoneHint ?? "przypisany do zamówienia"}. Wpisz go
-              poniżej, aby zobaczyć bilety.
+              {t("Wysłaliśmy kod SMS na numer %s. Wpisz go poniżej, aby zobaczyć bilety.", {
+                params: [phoneHint ?? t("przypisany do zamówienia")],
+              })}
             </p>
             <label className="block space-y-1.5">
               <span className="text-[0.65rem] font-bold uppercase tracking-widest text-muted-foreground">
-                Kod z SMS
+                {t("Kod z SMS")}
               </span>
               <input
                 value={code}
@@ -209,14 +215,14 @@ function FindTicketPage() {
               disabled={loading}
               className="gradient-brand flex w-full items-center justify-center gap-2 rounded-full px-6 py-3.5 text-sm font-bold uppercase text-primary-foreground disabled:opacity-50"
             >
-              {loading && <Loader2 className="size-4 animate-spin" />} Potwierdź kod
+              {loading && <Loader2 className="size-4 animate-spin" />} {t("Potwierdź kod")}
             </button>
             <button
               type="button"
               onClick={() => setStep(1)}
               className="w-full text-xs uppercase tracking-wide text-muted-foreground hover:text-foreground"
             >
-              Wróć do zamówienia
+              {t("Wróć do zamówienia")}
             </button>
           </form>
         )}
@@ -229,10 +235,10 @@ function FindTicketPage() {
               </div>
               <div>
                 <p className="font-display text-lg font-bold uppercase">
-                  Zamówienie {order.payment_code ?? `#${order.id}`}
+                  {t("Zamówienie %s", { params: [order.payment_code ?? `#${order.id}`] })}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {order.tickets.length} biletów przypisanych do zamówienia
+                  {t("%s biletów przypisanych do zamówienia", { params: [order.tickets.length] })}
                 </p>
               </div>
             </div>
@@ -242,7 +248,7 @@ function FindTicketPage() {
                 <li key={ticket.id} className="flex items-center gap-4 py-4">
                   <img
                     src={`data:image/png;base64,${ticket.qr_code}`}
-                    alt="Kod QR biletu"
+                    alt={t("Kod QR biletu")}
                     width={48}
                     height={48}
                     loading="lazy"
@@ -263,7 +269,7 @@ function FindTicketPage() {
                         : "bg-secondary text-muted-foreground"
                     }`}
                   >
-                    {TICKET_STATUS_LABEL[ticket.status] ?? "—"}
+                    {t(TICKET_STATUS_LABEL[ticket.status] ?? "—")}
                   </span>
                 </li>
               ))}
@@ -273,7 +279,7 @@ function FindTicketPage() {
               to="/profil"
               className="gradient-brand-soft flex items-center justify-center gap-2 rounded-full px-6 py-3.5 text-sm font-bold uppercase text-primary-foreground"
             >
-              <TicketIcon className="size-4" /> Zapisz bilety w profilu
+              <TicketIcon className="size-4" /> {t("Zapisz bilety w profilu")}
             </Link>
           </div>
         )}
@@ -303,7 +309,7 @@ function EventDropdown({
   return (
     <div className="relative space-y-1.5">
       <span className="text-[0.65rem] font-bold uppercase tracking-widest text-muted-foreground">
-        Wydarzenie
+        {t("Wydarzenie")}
       </span>
       <div className="flex items-center gap-2 rounded-2xl border border-border bg-background px-4 py-3 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/30">
         <Search className="size-4 shrink-0 text-muted-foreground" />
@@ -318,7 +324,7 @@ function EventDropdown({
             setTerm(e.target.value);
             setOpen(true);
           }}
-          placeholder="Szukaj aktywnego wydarzenia…"
+          placeholder={t("Szukaj aktywnego wydarzenia…")}
           className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
         />
         {isFetching && <Loader2 className="size-4 shrink-0 animate-spin text-muted-foreground" />}
@@ -331,7 +337,9 @@ function EventDropdown({
           className="absolute z-30 mt-1 max-h-64 w-full overflow-y-auto rounded-2xl border border-border bg-card p-1 shadow-xl"
         >
           {(data ?? []).length === 0 && (
-            <li className="px-4 py-3 text-sm text-muted-foreground">Brak aktywnych wydarzeń.</li>
+            <li className="px-4 py-3 text-sm text-muted-foreground">
+              {t("Brak aktywnych wydarzeń.")}
+            </li>
           )}
           {(data ?? []).map((event) => (
             <li key={event.id} role="option" aria-selected={value?.id === event.id}>

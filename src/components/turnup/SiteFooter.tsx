@@ -4,6 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import { resolveMenuLink } from "@/lib/api/endpoints";
 import { menuQuery } from "@/lib/api/queries";
 import type { MenuItem } from "@/lib/api/types";
+import { t } from "@/lib/i18n";
+import { StackedText } from "./StackedText";
 
 function SocialLinks({ className = "" }: { className?: string }) {
   return (
@@ -65,9 +67,7 @@ export function SiteFooter() {
       <div className="mx-auto flex max-w-[1600px] flex-col items-center gap-8 md:grid md:grid-cols-[auto_1fr_auto] md:items-center md:gap-6">
         <button className="gradient-brand flex w-fit items-center gap-4 rounded-full px-6 py-3 md:justify-self-start">
           <span className="font-display text-sm font-bold uppercase leading-tight text-primary-foreground">
-            Sprzedawaj
-            <br />
-            bilety u nas!
+            <StackedText text={t("Sprzedawaj bilety u nas!")} />
           </span>
           <Handshake className="size-7 text-primary-foreground" strokeWidth={1.5} />
         </button>

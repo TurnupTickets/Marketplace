@@ -1,4 +1,13 @@
 import type { QuoteResult } from "@/lib/api/types";
+import { interpolate } from "@/lib/i18n-store";
+
+/** Static-label translator (`t` from src/lib/i18n.ts); identity by default so this stays pure. */
+export type LabelTranslator = (
+  key: string,
+  options?: { params?: ReadonlyArray<string | number> },
+) => string;
+
+const untranslated: LabelTranslator = (key, options) => interpolate(key, options?.params ?? []);
 
 /**
  * "What makes up the final price" — a pure mapping of the quote response to
@@ -41,7 +50,10 @@ const TOLERANCE = 0.0001;
 
 export function buildPriceLines(
   quote: QuoteResult,
-  { groupTickets = true }: { groupTickets?: boolean } = {},
+  {
+    groupTickets = true,
+    translate = untranslated,
+  }: { groupTickets?: boolean; translate?: LabelTranslator } = {},
 ): PriceBreakdownResult {
   // `tickets_amount` is the backend's own total of the group subtotals;
   // older API deployments don't send it yet.
@@ -56,13 +68,13 @@ export function buildPriceLines(
         amount: group.subtotal,
         unitPrice: group.unit_price,
       }))
-    : [{ kind: "tickets", key: "tickets", label: "Bilety", amount: ticketsAmount }];
+    : [{ kind: "tickets", key: "tickets", label: translate("Bilety"), amount: ticketsAmount }];
 
   if (quote.service_amount > 0) {
     lines.push({
       kind: "service",
       key: "service",
-      label: "Opłata serwisowa",
+      label: translate("Opłata serwisowa"),
       amount: quote.service_amount,
     });
   }
@@ -71,17 +83,19 @@ export function buildPriceLines(
     lines.push({
       kind: "discount",
       key: "discount",
-      label: quote.discount ? `Rabat (${quote.discount.code})` : "Rabat",
+      label: quote.discount
+        ? translate("Rabat (%s)", { params: [quote.discount.code] })
+        : translate("Rabat"),
       amount: quote.discount_amount,
       ...(quote.discount?.info ? { hint: quote.discount.info } : {}),
     });
   }
 
   const extras: [string, string, number][] = [
-    ["sms", "Bilet SMS", quote.additional_costs.sms],
-    ["delivery", "Bilet kolekcjonerski z wysyłką", quote.additional_costs.delivery],
-    ["gift", "Bilet prezentowy", quote.additional_costs.gift],
-    ["params", "Dodatkowe opcje", quote.additional_costs.additional_cost_params],
+    ["sms", translate("Bilet SMS"), quote.additional_costs.sms],
+    ["delivery", translate("Bilet kolekcjonerski z wysyłką"), quote.additional_costs.delivery],
+    ["gift", translate("Bilet prezentowy"), quote.additional_costs.gift],
+    ["params", translate("Dodatkowe opcje"), quote.additional_costs.additional_cost_params],
   ];
   for (const [key, label, amount] of extras) {
     if (amount > 0) lines.push({ kind: "extra", key, label, amount });

@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import type { QuoteResult } from "@/lib/api/types";
 import { formatPrice } from "@/lib/format-price";
 import { buildPriceLines, discountEffect, type PriceLine } from "@/lib/price-breakdown";
+import { t } from "@/lib/i18n";
 
 /**
  * Line-by-line "what makes up the final price" — every amount and the
@@ -19,6 +20,7 @@ export function PriceBreakdown({
   const c = quote.currency;
   const { lines, total, inconsistent } = buildPriceLines(quote, {
     groupTickets: showTicketLines,
+    translate: t,
   });
   const effect = discountEffect(quote);
 
@@ -40,11 +42,13 @@ export function PriceBreakdown({
       </dl>
       {effect === "not-applicable" && quote.discount && (
         <p className="text-xs text-muted-foreground">
-          Kod {quote.discount.code} nie dotyczy wybranych biletów.
+          {t("Kod %s nie dotyczy wybranych biletów.", { params: [quote.discount.code] })}
         </p>
       )}
       <div className="flex items-center justify-between border-t border-border pt-4">
-        <span className="text-xs uppercase tracking-widest text-muted-foreground">Do zapłaty</span>
+        <span className="text-xs uppercase tracking-widest text-muted-foreground">
+          {t("Do zapłaty")}
+        </span>
         <span className="font-display text-xl font-bold">{formatPrice(total, c)}</span>
       </div>
     </div>
@@ -60,7 +64,9 @@ function Line({ line, currency }: { line: PriceLine; currency: string }) {
         ? `+${formatPrice(line.amount, currency)}`
         : formatPrice(line.amount, currency);
   const hint =
-    line.unitPrice !== undefined ? `${formatPrice(line.unitPrice, currency)} / szt.` : line.hint;
+    line.unitPrice !== undefined
+      ? `${formatPrice(line.unitPrice, currency)} / ${t("szt.")}`
+      : line.hint;
 
   return (
     <div className="flex items-start justify-between gap-4">

@@ -11,8 +11,15 @@ import { type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { languagesQuery, seoSettingsQuery } from "../lib/api/queries";
-import { splitLocalePrefix } from "../lib/locale";
+import { bcp47For, splitLocalePrefix } from "../lib/locale";
 import {
+  getActiveTranslationsSnapshot,
+  loadTranslations,
+  t,
+  TRANSLATIONS_BOOTSTRAP_GLOBAL,
+} from "../lib/i18n";
+import {
+  getActiveLanguage,
   getLanguagesCache,
   getRealUrl,
   LANGUAGES_BOOTSTRAP_GLOBAL,
@@ -43,9 +50,9 @@ function NotFoundComponent() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
+        <h2 className="mt-4 text-xl font-semibold text-foreground">{t("Nie znaleziono strony")}</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          The page you're looking for doesn't exist or has been moved.
+          {t("Strona, której szukasz, nie istnieje lub została przeniesiona.")}
         </p>
         <div className="mt-6">
           {/* Plain <a>, not a router Link: on an unknown-language 404
@@ -54,7 +61,7 @@ function NotFoundComponent() {
             href={import.meta.env.BASE_URL}
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Go home
+            {t("Strona główna")}
           </a>
         </div>
       </div>
@@ -70,10 +77,10 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          This page didn't load
+          {t("Nie udało się załadować strony")}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
+          {t("Coś poszło nie tak po naszej stronie. Odśwież stronę lub wróć na stronę główną.")}
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
@@ -83,13 +90,13 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
             }}
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Try again
+            {t("Spróbuj ponownie")}
           </button>
           <a
             href="/"
             className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
           >
-            Go home
+            {t("Strona główna")}
           </a>
         </div>
       </div>
@@ -106,6 +113,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     const languages = await context.queryClient.ensureQueryData(languagesQuery()).catch(() => null);
     // Languages unavailable: don't take the site down over the prefix.
     if (!languages) return { unknownLocale: false };
+    // Static UI strings for every route's render and head(). Cached
+    // (memory / localStorage, src/lib/i18n.ts), so client navigations
+    // don't refetch; never rejects — strings fall back to Polish keys.
+    await loadTranslations(getActiveLanguage());
 
     const { code } = splitLocalePrefix(getRealUrl().pathname);
     if (!code) return { unknownLocale: false };
@@ -148,17 +159,22 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: loaderData?.seo?.meta_title || "Turnup — bilety na wydarzenia" },
+      { title: loaderData?.seo?.meta_title || t("Turnup — bilety na wydarzenia") },
       {
         name: "description",
         content:
           loaderData?.seo?.meta_description ||
-          "Marketplace biletów na koncerty, festiwale i imprezy.",
+          t("Marketplace biletów na koncerty, festiwale i imprezy."),
       },
-      { property: "og:title", content: "Turnup — bilety na wydarzenia" },
+      {
+        property: "og:title",
+        content: loaderData?.seo?.meta_title || t("Turnup — bilety na wydarzenia"),
+      },
       {
         property: "og:description",
-        content: "Marketplace biletów na koncerty, festiwale i imprezy.",
+        content:
+          loaderData?.seo?.meta_description ||
+          t("Marketplace biletów na koncerty, festiwale i imprezy."),
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -211,7 +227,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang={bcp47For(getActiveLanguage())}>
       <head>
         <HeadContent />
         {/* Before the app bundle: the client router needs the languages to
@@ -219,6 +235,13 @@ function RootShell({ children }: { children: ReactNode }) {
         <script
           dangerouslySetInnerHTML={{
             __html: `window.${LANGUAGES_BOOTSTRAP_GLOBAL}=${JSON.stringify(getLanguagesCache()).replace(/</g, "\\u003c")}`,
+          }}
+        />
+        {/* Same reason for UI strings: hydration must render the server's
+            text, so the client store is seeded from this, not localStorage. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.${TRANSLATIONS_BOOTSTRAP_GLOBAL}=${JSON.stringify(getActiveTranslationsSnapshot()).replace(/</g, "\\u003c")}`,
           }}
         />
         {/* EventImage starts transparent and fades in once hydrated JS sees

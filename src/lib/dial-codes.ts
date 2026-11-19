@@ -1,3 +1,4 @@
+/** `country` is an i18n key (Polish source), translated where shown. */
 export const dialCodes: { code: string; country: string }[] = [
   { code: "+48", country: "Polska" },
   { code: "+49", country: "Niemcy" },

@@ -6,6 +6,7 @@ import { languagesQuery } from "@/lib/api/queries";
 import { buildSwitchUrl, resolveLocale } from "@/lib/locale";
 import { getRealUrl } from "@/lib/locale-runtime";
 import type { LanguageResource } from "@/lib/api/types";
+import { t } from "@/lib/i18n";
 
 /**
  * Language switcher. Every CMS language is selectable:
@@ -55,7 +56,7 @@ export function LanguageSwitcher({ variant = "desktop" }: { variant?: "desktop" 
         onClick={toggle}
         aria-haspopup="listbox"
         aria-expanded={open}
-        aria-label="Wybierz język"
+        aria-label={t("Wybierz język")}
         className={
           variant === "mobile"
             ? "flex shrink-0 items-center gap-1.5 md:hidden"

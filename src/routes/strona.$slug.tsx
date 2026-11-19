@@ -3,6 +3,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { PageShell } from "@/components/turnup/PageShell";
 import { staticPageQuery } from "@/lib/api/queries";
 import { normalizeCmsHtml } from "@/lib/decode-cms-html";
+import { t } from "@/lib/i18n";
 
 export const Route = createFileRoute("/strona/$slug")({
   loader: async ({ context, params }) => {
@@ -14,10 +15,12 @@ export const Route = createFileRoute("/strona/$slug")({
     }
   },
   head: ({ loaderData }) => {
-    const title = loaderData ? `${loaderData.title} — turnup` : "Strona niedostępna — turnup";
+    const title = loaderData ? `${loaderData.title} — turnup` : t("Strona niedostępna — turnup");
     const description = loaderData
-      ? `${loaderData.title} w serwisie turnup — informacje dla kupujących bilety.`
-      : "Ta strona jest niedostępna.";
+      ? t("%s w serwisie turnup — informacje dla kupujących bilety.", {
+          params: [loaderData.title],
+        })
+      : t("Ta strona jest niedostępna.");
     return {
       meta: [
         { title },
@@ -36,11 +39,11 @@ function StaticPageView() {
   const { data: page } = useSuspenseQuery(staticPageQuery(slug));
 
   return (
-    <PageShell eyebrow="Informacje" title={page.title}>
+    <PageShell eyebrow={t("Informacje")} title={page.title}>
       <article className="w-full min-w-0 space-y-8 rounded-3xl border border-border bg-card p-6 md:p-10">
         {page.updated_at && (
           <p className="text-xs uppercase tracking-widest text-muted-foreground">
-            Aktualizacja: {page.updated_at}
+            {t("Aktualizacja: %s", { params: [page.updated_at] })}
           </p>
         )}
 
@@ -54,7 +57,7 @@ function StaticPageView() {
           search={{ page: 1, q: "" }}
           className="gradient-brand inline-flex rounded-full px-6 py-3 text-sm font-bold uppercase text-primary-foreground"
         >
-          Przeglądaj wydarzenia
+          {t("Przeglądaj wydarzenia")}
         </Link>
       </article>
     </PageShell>

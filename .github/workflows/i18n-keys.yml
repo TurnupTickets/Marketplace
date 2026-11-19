@@ -1,0 +1,48 @@
+name: i18n keys
+
+# Fails when the storefront's static UI keys (t()/translate() in src/) differ
+# from the CMS seeder fixture (TurnupCms database/seeders/fixtures/
+# storefront_translations.json, read by StorefrontTranslationsSeeder).
+# Fix: in TurnupApp run `npm run i18n:keys` with TurnupCms checked out next
+# to it, then commit the regenerated fixture in TurnupCms.
+#
+# Requires the `CMS_READ_TOKEN` secret: a fine-grained token with read-only
+# "Contents" access to TurnupTickets/NewCms (private).
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: TurnupApp
+
+      - uses: actions/checkout@v4
+        with:
+          repository: TurnupTickets/NewCms
+          ref: main
+          token: ${{ secrets.CMS_READ_TOKEN }}
+          path: TurnupCms
+          sparse-checkout: database/seeders/fixtures
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: TurnupApp/package-lock.json
+
+      - name: Install dependencies
+        working-directory: TurnupApp
+        run: npm ci
+
+      - name: Check fixture is up to date
+        working-directory: TurnupApp
+        run: npm run i18n:keys:check

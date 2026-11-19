@@ -1,6 +1,7 @@
 import { Minus, Plus, RotateCcw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SeatMapResource, SeatMapSeat, SeatSelection } from "@/lib/api/types";
+import { t } from "@/lib/i18n";
 
 const FALLBACK_COLOR = "#9ca3af";
 const DISABLED_FILL = "#d4d4d8";
@@ -33,9 +34,9 @@ function isSeatDisabled(seat: SeatMapSeat, occupiedSeatIds: Set<number>): boolea
 
 function seatTitle(seat: SeatMapSeat): string {
   const parts = [
-    seat.section ? `Sekcja ${seat.section}` : null,
-    seat.row ? `Rząd ${seat.row}` : null,
-    seat.number ? `Miejsce ${seat.number}` : null,
+    seat.section ? t("Sekcja %s", { params: [seat.section] }) : null,
+    seat.row ? t("Rząd %s", { params: [seat.row] }) : null,
+    seat.number ? t("Miejsce %s", { params: [seat.number] }) : null,
   ].filter(Boolean);
   return parts.join(", ");
 }
@@ -76,7 +77,7 @@ const ZoomControls = ({
     <div className="flex items-center gap-1">
       <button
         type="button"
-        aria-label="Oddal"
+        aria-label={t("Oddal")}
         onClick={onZoomOut}
         className="flex size-7 items-center justify-center rounded-full border border-border hover:border-primary"
       >
@@ -84,7 +85,7 @@ const ZoomControls = ({
       </button>
       <button
         type="button"
-        aria-label="Resetuj widok"
+        aria-label={t("Resetuj widok")}
         onClick={onReset}
         className="flex size-7 items-center justify-center rounded-full border border-border hover:border-primary"
       >
@@ -92,7 +93,7 @@ const ZoomControls = ({
       </button>
       <button
         type="button"
-        aria-label="Przybliż"
+        aria-label={t("Przybliż")}
         onClick={onZoomIn}
         className="flex size-7 items-center justify-center rounded-full border border-border hover:border-primary"
       >
@@ -102,6 +103,7 @@ const ZoomControls = ({
   </div>
 );
 
+/** A key, translated at render — never at module scope (see src/lib/i18n.ts). */
 const PAN_ZOOM_HINT = "Przybliż kółkiem myszy, przesuń widok Ctrl/Cmd + lewy przycisk myszy";
 
 /**
@@ -156,7 +158,7 @@ function CustomSeatPicker({
   return (
     <div className="space-y-2">
       <ZoomControls
-        hint={PAN_ZOOM_HINT}
+        hint={t(PAN_ZOOM_HINT)}
         onZoomOut={() => zoomBy(1 / BUTTON_ZOOM_FACTOR)}
         onReset={() => setTransform({ scale: 1, x: 0, y: 0 })}
         onZoomIn={() => zoomBy(BUTTON_ZOOM_FACTOR)}
@@ -492,7 +494,7 @@ function SchemeSeatCanvas({
   return (
     <div className="space-y-2">
       <ZoomControls
-        hint={PAN_ZOOM_HINT}
+        hint={t(PAN_ZOOM_HINT)}
         onZoomOut={() => {
           const canvas = canvasRef.current;
           if (canvas) zoomAt(canvas.width / 2, canvas.height / 2, 1 / BUTTON_ZOOM_FACTOR);
@@ -603,7 +605,7 @@ export function SeatPicker({
       </div>
       {occupiedSeatIds.size > 0 && (
         <p className="text-xs text-destructive">
-          Część wybranych miejsc jest już zajęta — usunęliśmy je z koszyka, wybierz inne.
+          {t("Część wybranych miejsc jest już zajęta — usunęliśmy je z koszyka, wybierz inne.")}
         </p>
       )}
       {seatMap.type === "scheme" ? (

@@ -21,6 +21,7 @@ import { createOrder, quoteCart } from "@/lib/api/endpoints";
 import { getDomainErrorMessage, getFieldErrors } from "@/lib/api/client";
 import { dialCodes } from "@/lib/dial-codes";
 import type { CreateOrderRequest, SeatSelection, TicketSelection } from "@/lib/api/types";
+import { t } from "@/lib/i18n";
 
 const cartSearchSchema = z.object({
   tickets: fallback(z.record(z.string(), z.number()), {}).default({}),
@@ -45,11 +46,12 @@ export const Route = createFileRoute("/wydarzenia/$tagSlug/$eventSlug_/zamowieni
     }
   },
   head: () => ({
-    meta: [{ title: "Zamówienie — turnup" }, { name: "robots", content: "noindex" }],
+    meta: [{ title: t("Zamówienie — turnup") }, { name: "robots", content: "noindex" }],
   }),
   component: OrderForm,
 });
 
+// Messages are i18n keys, translated where shown.
 const buyerSchema = z.object({
   first_name: z.string().trim().min(2, { message: "Podaj imię" }).max(255),
   last_name: z.string().trim().min(2, { message: "Podaj nazwisko" }).max(255),
@@ -143,7 +145,7 @@ function OrderForm() {
       // carry a buyer-facing Polish message from the backend — show it
       // instead of one generic string for every failure mode.
       setFormError(
-        getDomainErrorMessage(err) ?? "Nie udało się złożyć zamówienia. Spróbuj ponownie.",
+        getDomainErrorMessage(err) ?? t("Nie udało się złożyć zamówienia. Spróbuj ponownie."),
       );
     },
   });
@@ -164,12 +166,12 @@ function OrderForm() {
     if (!buyerParsed.success) {
       for (const issue of buyerParsed.error.issues) {
         const key = String(issue.path[0]);
-        if (!(key in nextFieldErrors)) nextFieldErrors[key] = issue.message;
+        if (!(key in nextFieldErrors)) nextFieldErrors[key] = t(issue.message);
       }
     }
 
-    if (!consentTerms) nextFieldErrors["consent_terms"] = "Zgoda wymagana, aby kontynuować.";
-    if (!consentPrivacy) nextFieldErrors["consent_privacy"] = "Zgoda wymagana, aby kontynuować.";
+    if (!consentTerms) nextFieldErrors["consent_terms"] = t("Zgoda wymagana, aby kontynuować.");
+    if (!consentPrivacy) nextFieldErrors["consent_privacy"] = t("Zgoda wymagana, aby kontynuować.");
 
     let address: { city: string; city_code: string; street_number: string } | null = null;
     if (needsShippingAddress) {
@@ -181,7 +183,7 @@ function OrderForm() {
       if (!addressParsed.success) {
         for (const issue of addressParsed.error.issues) {
           const key = String(issue.path[0]);
-          if (!(key in nextFieldErrors)) nextFieldErrors[key] = issue.message;
+          if (!(key in nextFieldErrors)) nextFieldErrors[key] = t(issue.message);
         }
       } else {
         address = addressParsed.data;
@@ -224,9 +226,9 @@ function OrderForm() {
       <div className="grid gap-6 py-6 lg:grid-cols-[minmax(0,1fr)_400px] lg:py-10">
         <div className="space-y-6">
           <div>
-            <p className="section-chip">Zamówienie</p>
+            <p className="section-chip">{t("Zamówienie")}</p>
             <h1 className="mt-4 font-display text-2xl font-bold uppercase leading-tight md:text-4xl">
-              Dane do zamówienia
+              {t("Dane do zamówienia")}
             </h1>
             <p className="mt-2 text-sm text-muted-foreground">
               {event.name} · {event.city}
@@ -240,7 +242,7 @@ function OrderForm() {
           >
             <div className="grid gap-4 sm:grid-cols-2">
               <Field
-                label="Imię"
+                label={t("Imię")}
                 value={firstName}
                 onChange={(e) => {
                   setFirstName(e.target.value);
@@ -250,7 +252,7 @@ function OrderForm() {
                 required
               />
               <Field
-                label="Nazwisko"
+                label={t("Nazwisko")}
                 value={lastName}
                 onChange={(e) => {
                   setLastName(e.target.value);
@@ -262,7 +264,7 @@ function OrderForm() {
             </div>
 
             <Field
-              label="Adres e-mail"
+              label={t("Adres e-mail")}
               type="email"
               value={email}
               onChange={(e) => {
@@ -276,7 +278,7 @@ function OrderForm() {
             <div className="grid grid-cols-[160px_1fr] gap-3">
               <DialCodeSelect value={dialCode} onChange={setDialCode} />
               <Field
-                label="Numer telefonu"
+                label={t("Numer telefonu")}
                 type="tel"
                 value={phone}
                 onChange={(e) => {
@@ -290,7 +292,7 @@ function OrderForm() {
 
             <label className="block space-y-1.5">
               <span className="text-[0.65rem] font-bold uppercase tracking-widest text-muted-foreground">
-                Uwagi do zakupu
+                {t("Uwagi do zakupu")}
               </span>
               <textarea
                 value={comments}
@@ -303,11 +305,11 @@ function OrderForm() {
             {needsShippingAddress && (
               <div className="space-y-4 rounded-2xl bg-secondary p-4">
                 <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                  Adres wysyłki biletu kolekcjonerskiego
+                  {t("Adres wysyłki biletu kolekcjonerskiego")}
                 </p>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field
-                    label="Miasto"
+                    label={t("Miasto")}
                     value={city}
                     onChange={(e) => {
                       setCity(e.target.value);
@@ -317,7 +319,7 @@ function OrderForm() {
                     required
                   />
                   <Field
-                    label="Kod pocztowy"
+                    label={t("Kod pocztowy")}
                     value={cityCode}
                     onChange={(e) => {
                       setCityCode(e.target.value);
@@ -328,7 +330,7 @@ function OrderForm() {
                   />
                 </div>
                 <Field
-                  label="Ulica i numer domu"
+                  label={t("Ulica i numer domu")}
                   value={streetNumber}
                   onChange={(e) => {
                     setStreetNumber(e.target.value);
@@ -350,15 +352,15 @@ function OrderForm() {
                 error={fieldErrors["consent_terms"]}
                 label={
                   <>
-                    Akceptuję{" "}
+                    {t("Akceptuję")}{" "}
                     <Link
                       to="/strona/$slug"
                       params={{ slug: "regulamin" }}
                       className="text-primary hover:underline"
                     >
-                      regulamin
+                      {t("regulamin")}
                     </Link>{" "}
-                    serwisu.
+                    {t("serwisu.")}
                   </>
                 }
               />
@@ -371,13 +373,13 @@ function OrderForm() {
                 error={fieldErrors["consent_privacy"]}
                 label={
                   <>
-                    Wyrażam zgodę na przetwarzanie danych osobowych zgodnie z{" "}
+                    {t("Wyrażam zgodę na przetwarzanie danych osobowych zgodnie z")}{" "}
                     <Link
                       to="/strona/$slug"
                       params={{ slug: "polityka-prywatnosci" }}
                       className="text-primary hover:underline"
                     >
-                      polityką prywatności
+                      {t("polityką prywatności")}
                     </Link>
                     .
                   </>
@@ -393,20 +395,20 @@ function OrderForm() {
               className="gradient-brand flex w-full items-center justify-center gap-2 rounded-full px-6 py-3.5 text-sm font-bold uppercase text-primary-foreground disabled:opacity-50"
             >
               {mutation.isPending && <Loader2 className="size-4 animate-spin" />}
-              Przejdź do płatności
+              {t("Przejdź do płatności")}
             </button>
           </form>
         </div>
 
         <aside className="h-fit space-y-4 rounded-3xl border border-border bg-card p-6 lg:sticky lg:top-28">
-          <h2 className="font-display text-xl font-bold uppercase">Podsumowanie</h2>
+          <h2 className="font-display text-xl font-bold uppercase">{t("Podsumowanie")}</h2>
           {quoteError ? (
             <p className="text-sm font-semibold text-destructive">
               {getDomainErrorMessage(quoteError) ??
-                "Nie udało się przeliczyć zamówienia. Wróć do wydarzenia i spróbuj ponownie."}
+                t("Nie udało się przeliczyć zamówienia. Wróć do wydarzenia i spróbuj ponownie.")}
             </p>
           ) : quoteLoading || !quote ? (
-            <p className="text-sm text-muted-foreground">Liczenie…</p>
+            <p className="text-sm text-muted-foreground">{t("Liczenie…")}</p>
           ) : (
             <PriceBreakdown quote={quote} />
           )}
@@ -423,7 +425,7 @@ function DialCodeSelect({ value, onChange }: { value: string; onChange: (code: s
   return (
     <div className="space-y-1.5">
       <span className="text-[0.65rem] font-bold uppercase tracking-widest text-muted-foreground">
-        Kierunkowy
+        {t("Kierunkowy")}
       </span>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
@@ -433,27 +435,27 @@ function DialCodeSelect({ value, onChange }: { value: string; onChange: (code: s
             aria-expanded={open}
             className="flex w-full items-center justify-between rounded-2xl border border-border bg-background px-3 py-3 text-sm outline-none transition-colors focus:border-primary"
           >
-            <span>{selected ? `${selected.code} ${selected.country}` : "Wybierz kraj"}</span>
+            <span>{selected ? `${selected.code} ${t(selected.country)}` : t("Wybierz kraj")}</span>
             <ChevronDown className="size-4 shrink-0 opacity-50" />
           </button>
         </PopoverTrigger>
         <PopoverContent className="w-64 p-0">
           <Command>
-            <CommandInput placeholder="Szukaj kraju lub kodu…" />
+            <CommandInput placeholder={t("Szukaj kraju lub kodu…")} />
             <CommandList>
-              <CommandEmpty>Brak wyników.</CommandEmpty>
+              <CommandEmpty>{t("Brak wyników.")}</CommandEmpty>
               <CommandGroup>
                 {dialCodes.map((d) => (
                   <CommandItem
                     key={d.code}
-                    value={`${d.code} ${d.country}`}
+                    value={`${d.code} ${t(d.country)}`}
                     onSelect={() => {
                       onChange(d.code);
                       setOpen(false);
                     }}
                   >
                     <Check className={`size-4 ${d.code === value ? "opacity-100" : "opacity-0"}`} />
-                    {d.code} {d.country}
+                    {d.code} {t(d.country)}
                   </CommandItem>
                 ))}
               </CommandGroup>

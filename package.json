@@ -10,7 +10,9 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "i18n:keys": "node scripts/extract-i18n-keys.mjs ../TurnupCms/database/seeders/fixtures/storefront_translations.json",
+    "i18n:keys:check": "node scripts/extract-i18n-keys.mjs --check ../TurnupCms/database/seeders/fixtures/storefront_translations.json"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

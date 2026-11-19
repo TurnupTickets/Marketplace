@@ -6,6 +6,7 @@ import { Link } from "@tanstack/react-router";
 import { Loader2, Search, X } from "lucide-react";
 import { parseEventPath } from "@/lib/api/endpoints";
 import { activeEventsQuery } from "@/lib/api/queries";
+import { t } from "@/lib/i18n";
 
 const QUICK = ["Festival", "Teatr", "Warszawa", "Kraków", "JMSN", "Scrap"];
 
@@ -47,7 +48,7 @@ export function SearchModal({ open, onClose }: { open: boolean; onClose: () => v
   return createPortal(
     <div className="fixed inset-0 z-[100] flex items-start justify-center p-3 md:p-10">
       <button
-        aria-label="Zamknij wyszukiwarkę"
+        aria-label={t("Zamknij wyszukiwarkę")}
         onClick={onClose}
         className="absolute inset-0 bg-background/80 backdrop-blur-md"
       />
@@ -59,13 +60,13 @@ export function SearchModal({ open, onClose }: { open: boolean; onClose: () => v
             autoFocus
             value={term}
             onChange={(e) => setTerm(e.target.value)}
-            placeholder="Szukaj eventu, miasta, kategorii…"
+            placeholder={t("Szukaj eventu, miasta, kategorii…")}
             className="w-full bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground"
           />
           {isFetching && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
           <button
             onClick={onClose}
-            aria-label="Zamknij"
+            aria-label={t("Zamknij")}
             className="rounded-full p-1 text-muted-foreground transition-colors hover:text-foreground"
           >
             <X className="size-5" />
@@ -87,7 +88,7 @@ export function SearchModal({ open, onClose }: { open: boolean; onClose: () => v
         <div className="max-h-[60vh] overflow-y-auto px-2 pb-3">
           {results.length === 0 ? (
             <p className="px-4 py-8 text-center text-sm text-muted-foreground">
-              Brak wyników dla „{debounced}”.
+              {t("Brak wyników dla „%s”.", { params: [debounced] })}
             </p>
           ) : (
             <ul className="space-y-1">
@@ -132,7 +133,7 @@ export function SearchModal({ open, onClose }: { open: boolean; onClose: () => v
             onClick={onClose}
             className="text-xs font-semibold uppercase tracking-wide text-primary hover:underline"
           >
-            Zobacz wszystkie wydarzenia
+            {t("Zobacz wszystkie wydarzenia")}
           </Link>
         </div>
       </div>

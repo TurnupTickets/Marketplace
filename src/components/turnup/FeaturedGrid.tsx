@@ -1,5 +1,6 @@
 import type { EventListResource } from "@/lib/api/types";
 import { EventCard } from "./EventCard";
+import { t } from "@/lib/i18n";
 
 const TILE_RADIUS = "rounded-[10px]";
 
@@ -41,7 +42,7 @@ export function FeaturedGrid({ events }: { events: EventListResource[] }) {
   return (
     <section className="px-4 md:px-6">
       <h2 className="mb-3 text-center font-display text-sm font-bold uppercase tracking-[0.18em]">
-        Wyróżnione
+        {t("Wyróżnione")}
       </h2>
 
       <div className="flex flex-col gap-3 md:flex-row md:gap-4">

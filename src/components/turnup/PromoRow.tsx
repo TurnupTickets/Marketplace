@@ -1,7 +1,9 @@
 import { ChevronRight, Handshake } from "lucide-react";
 import { EventImage } from "./EventImage";
+import { StackedText } from "./StackedText";
 import { Link } from "@tanstack/react-router";
 import type { AccountTicketResource } from "@/lib/api/types";
+import { t } from "@/lib/i18n";
 
 /** Only what the thumbnail strip needs — the caller derives this from the
  * logged-in customer's `AccountTicketResource[]`, deduped by event and
@@ -23,16 +25,12 @@ export function PromoRow({
           click target: logged in -> my orders in profil, logged out -> login. */}
       <Link
         {...(isLoggedIn ? { to: "/profil", hash: "zamowienia" } : { to: "/logowanie" })}
-        aria-label="Moje nadchodzące wydarzenia"
+        aria-label={t("Moje nadchodzące wydarzenia")}
         className="gradient-brand-soft group col-span-2 flex min-w-0 items-stretch gap-2 rounded-2xl p-2 md:col-span-1 md:rounded-full md:p-1.5"
       >
         <div className="flex basis-1/2 items-center px-2 md:px-3">
           <p className="font-display text-xs font-bold uppercase leading-tight text-primary-foreground md:text-sm">
-            Moje
-            <br />
-            nadchodzące
-            <br />
-            wydarzenia
+            <StackedText text={t("Moje nadchodzące wydarzenia")} mode="each-word" />
           </p>
         </div>
 
@@ -55,7 +53,7 @@ export function PromoRow({
         ) : (
           <div className="flex basis-1/2 items-center justify-center rounded-xl bg-background px-2 py-2 text-center transition-colors hover:bg-secondary md:rounded-full md:px-4">
             <span className="font-display text-xs font-semibold uppercase leading-tight tracking-wide text-foreground">
-              Zaloguj się aby mieć dostęp
+              {t("Zaloguj się aby mieć dostęp")}
             </span>
           </div>
         )}
@@ -68,9 +66,7 @@ export function PromoRow({
           strokeWidth={1.5}
         />
         <span className="font-display text-xs font-bold uppercase leading-tight text-primary-foreground md:text-sm">
-          Sprzedawaj
-          <br />
-          bilety u nas!
+          <StackedText text={t("Sprzedawaj bilety u nas!")} />
         </span>
       </button>
     </section>
