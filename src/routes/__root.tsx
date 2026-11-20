@@ -111,26 +111,29 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   // page loaders) already carries the right X-Localization.
   beforeLoad: async ({ context, location }) => {
     const languages = await context.queryClient.ensureQueryData(languagesQuery()).catch(() => null);
-    // Languages unavailable: don't take the site down over the prefix.
-    if (!languages) return { unknownLocale: false };
     // Static UI strings for every route's render and head(). Cached
     // (memory / localStorage, src/lib/i18n.ts), so client navigations
     // don't refetch; never rejects — strings fall back to Polish keys.
-    await loadTranslations(getActiveLanguage());
+    // Started here but NOT awaited: the promise is threaded into the
+    // loader's context so it can run concurrently with seoSettingsQuery()
+    // there, instead of blocking beforeLoad's return first.
+    const translationsPromise = loadTranslations(getActiveLanguage());
+    // Languages unavailable: don't take the site down over the prefix.
+    if (!languages) return { unknownLocale: false, translationsPromise };
 
     const { code } = splitLocalePrefix(getRealUrl().pathname);
-    if (!code) return { unknownLocale: false };
+    if (!code) return { unknownLocale: false, translationsPromise };
     const lang = languages.find((l) => l.code === code);
     // Only CMS language codes count as a prefix — anything else is a 404.
     // Not `throw notFound()`: thrown from the root route (beforeLoad or
     // loader) it escapes the document shell and renders as a 500. The flag
     // makes RootComponent render the 404 page inside the normal shell.
-    if (!lang) return { unknownLocale: true };
+    if (!lang) return { unknownLocale: true, translationsPromise };
     // The default language is never prefixed: `/pl_pl/x` → `/x`. With the
     // list loaded the router no longer re-adds this prefix, so the
     // internal href redirects to the unprefixed URL.
     if (lang.is_default) throw redirect({ href: location.href, replace: true });
-    return { unknownLocale: false };
+    return { unknownLocale: false, translationsPromise };
   },
   loader: async ({ context }) => {
     if (context.unknownLocale) markNotFoundResponse();
@@ -140,8 +143,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     // this for real (500 from one network path, 403 — likely a WAF/bot
     // rule — from GitHub Actions' runner IP on another). SEO meta/tracking
     // scripts are enhancement, not core functionality, so degrade to the
-    // hardcoded fallbacks below rather than taking the page down.
-    const seo = await context.queryClient.ensureQueryData(seoSettingsQuery()).catch(() => null);
+    // hardcoded fallbacks below rather than taking the page down. Run
+    // alongside the translations promise started in beforeLoad instead of
+    // after it, removing one serial round-trip from the critical path.
+    const [seo] = await Promise.all([
+      context.queryClient.ensureQueryData(seoSettingsQuery()).catch(() => null),
+      context.translationsPromise,
+    ]);
     // Shipped to the client with the SSR payload: the browser's query cache
     // isn't dehydrated, so without this the client-side languages cache (and
     // with it X-Localization on domain-based languages) would stay empty
